@@ -1,4 +1,4 @@
-"""Uses an LLM model to browse the Internet"""
+"""Uses an LLM model to autonomously browse the Internet"""
 
 import asyncio
 import logging
