@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from browser_use import Agent, Browser, BrowserConfig
@@ -21,7 +22,7 @@ tz = os.environ.get("TZ")
 model = os.environ.get("MODEL")
 max_input_tokens = int(os.environ.get("MAX_INPUT_TOKENS", 120000))
 headless = bool(int(os.environ.get("HEADLESS")))
-
+browser = Browser(config=BrowserConfig(headless=headless))
 ts = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d_%H%M%S")
 
 models = {
@@ -31,29 +32,31 @@ models = {
     "gemini": ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp"),
 }
 
-browser = Browser(config=BrowserConfig(headless=headless))
-
-with open("prompt.txt") as f:
-    prompt = f.read()
-
 
 async def main():
-    agent = Agent(
-        task=prompt,
-        llm=models.get(model),
-        browser=browser,
-        max_input_tokens=max_input_tokens,
-    )
+    paths = Path(__file__).parent.glob("prompt*.txt")
 
-    logger.info(f"Using agent: {agent.model_name}")
+    for path in paths:
+        with open(path) as f:
+            prompt = f.read()
 
-    try:
-        result = await agent.run()
-        with open(f"result_{ts}.md", mode="w") as f:
-            f.write(result.final_result())
+        agent = Agent(
+            task=prompt,
+            llm=models.get(model),
+            browser=browser,
+            max_input_tokens=max_input_tokens,
+        )
 
-    except Exception as e:
-        logger.exception(e)
+        logger.info(f"Using agent: {agent.model_name}")
+
+        try:
+            result = await agent.run()
+            filename = path.stem
+            with open(f"{filename}_{ts}.md", mode="w") as f:
+                f.write(result.final_result())
+
+        except Exception as e:
+            logger.exception(e)
 
 
 if "__name__" == "__name__":
