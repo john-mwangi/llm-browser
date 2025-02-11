@@ -1,4 +1,4 @@
-"""Uses an LLM model to browse the Internet"""
+"""Uses an LLM model to autonomously browse the Internet"""
 
 import asyncio
 import logging
@@ -28,7 +28,7 @@ ts = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d_%H%M%S")
 models = {
     "openai": ChatOpenAI(model="gpt-4o-mini"),
     "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
-    "ollama": ChatOllama(model="qwen2.5:7b"),
+    "ollama": ChatOllama(model="llava-phi3:latest"),
     "gemini": ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp"),
 }
 
