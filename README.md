@@ -19,4 +19,6 @@ HEADLESS=1
 4. Run `main.py`
 
 ## Demo
+In the video below, the model was tasked with adding grocery items to cart, and checking out.
+
 [![AI Did My Groceries](https://github.com/user-attachments/assets/d9359085-bde6-41d4-aa4e-6520d0221872)](https://www.youtube.com/watch?v=L2Ya9PYNns8)
