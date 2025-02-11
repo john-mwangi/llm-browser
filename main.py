@@ -1,0 +1,60 @@
+"""Uses an LLM model to browse the Internet"""
+
+import asyncio
+import logging
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from browser_use import Agent, Browser, BrowserConfig
+from dotenv import load_dotenv
+from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+tz = os.environ.get("TZ")
+model = os.environ.get("MODEL")
+max_input_tokens = int(os.environ.get("MAX_INPUT_TOKENS", 120000))
+headless = bool(int(os.environ.get("HEADLESS")))
+
+ts = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d_%H%M%S")
+
+models = {
+    "openai": ChatOpenAI(model="gpt-4o-mini"),
+    "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
+    "ollama": ChatOllama(model="qwen2.5:7b"),
+    "gemini": ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp"),
+}
+
+browser = Browser(config=BrowserConfig(headless=headless))
+
+with open("prompt.txt") as f:
+    prompt = f.read()
+
+
+async def main():
+    agent = Agent(
+        task=prompt,
+        llm=models.get(model),
+        browser=browser,
+        max_input_tokens=max_input_tokens,
+    )
+
+    logger.info(f"Using agent: {agent.model_name}")
+
+    try:
+        result = await agent.run()
+        with open(f"result_{ts}.md", mode="w") as f:
+            f.write(result.final_result())
+
+    except Exception as e:
+        logger.exception(e)
+
+
+if "__name__" == "__name__":
+    asyncio.run(main())
