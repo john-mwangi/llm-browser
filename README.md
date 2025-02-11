@@ -2,6 +2,11 @@
 ## About
 Browses the Internet autonomously using an LLM model. Reads the prompt from a text file and saves the result in a markdown file at the root.
 
+## Features
+1. Allows you to save a list of frequently used prompts.
+2. Works with Ollama to bypass commmercial API rate limits.
+3. Sends an email of the results or alternatively, saves them locally.
+
 ## Usage
 1. Create a python v3.11 virtual environment and install the requirements.
 ```
