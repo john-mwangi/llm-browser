@@ -1,5 +1,4 @@
 *.env
 prompt*.txt
 result*.md
-prompt*.md
 *.gif
