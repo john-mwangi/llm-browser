@@ -1,5 +1,6 @@
 *.env
-prompt*.txt
-result*.md
-prompt*.md
+prompts
+drafts
+tests
+results
 *.gif
