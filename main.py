@@ -1,5 +1,6 @@
 """Uses an LLM model to autonomously browse the Internet"""
 
+import asyncio
 import logging
 import os
 import re
@@ -37,71 +38,59 @@ models = {
 }
 
 
-async def main():
-    paths = Path(__file__).parent.glob("prompts/prompt*.txt")
+async def browse_content(prompt_content, path):
+    prompt = prompt_content["prompt"]
+    agent = Agent(
+        task=prompt,
+        llm=models.get(model),
+        browser=browser,
+        max_input_tokens=max_input_tokens,
+    )
 
-    for path in paths:
-        with open(path) as f:
-            prompt = f.read()
+    logger.info(f"Using agent: {agent.model_name}")
 
-        agent = Agent(
-            task=prompt,
-            llm=models.get(model),
-            browser=browser,
-            max_input_tokens=max_input_tokens,
-        )
+    try:
+        result = await agent.run()
+        filename = path.stem
+        with open(f"results/{filename}_{ts}.md", mode="w") as f:
+            f.write(result.final_result())
 
-        logger.info(f"Using agent: {agent.model_name}")
-
-        try:
-            result = await agent.run()
-            filename = path.stem
-            with open(f"results/{filename}_{ts}.md", mode="w") as f:
-                f.write(result.final_result())
-
-        except TimeoutError as e:
-            logger.exception(e)
+    except TimeoutError as e:
+        logger.exception(e)
 
 
-def download_content():
-    paths = Path(__file__).parent.glob("prompts/prompt*.toml")
-    for path in paths:
-        with open(path, mode="rb") as f:
-            prompt_file = tomllib.load(f)
+def download_content(prompt_content, path):
+    url = prompt_content["url"]
+    prompt = prompt_content["prompt"]
+    title = re.sub("\s+", "_", prompt_content["title"])
 
-        url = prompt_file["url"]
-        prompt = prompt_file["prompt"]
-        title = re.sub("\s+", "_", prompt_file["title"])
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=headless)
+        page = browser.new_page()
+        page.goto(url)
+        page.wait_for_selector("body")
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=headless)
-            page = browser.new_page()
-            page.goto(url)
-            page.wait_for_selector("body")
+        # extract jobs and their descriptions
+        roles = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
 
-            # extract jobs and their descriptions
-            roles = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
+        data = {}
 
-            data = {}
+        for role in roles:
+            role.click()
+            entity = page.query_selector("div.wHYlTd.MKCbgd.a3jPc").text_content()
 
-            for role in roles:
-                role.click()
-                entity = page.query_selector("div.wHYlTd.MKCbgd.a3jPc").text_content()
+            try:
+                page.get_by_role(role="button", name="Show full description").click()
+                page.wait_for_load_state("domcontentloaded")
+                content = page.query_selector("div.NgUYpe").text_content()
+                data[role.text_content()] = f"Entity: {entity}\n\n" + content
 
-                try:
-                    page.get_by_role(
-                        role="button", name="Show full description"
-                    ).click()
-                    page.wait_for_load_state("domcontentloaded")
-                    content = page.query_selector("div.NgUYpe").text_content()
-                    data[role.text_content()] = f"Entity: {entity}\n\n" + content
+            except Exception as e:
+                logger.exception(f"error on '{role.text_content()}': {e}")
 
-                except Exception as e:
-                    logger.exception(f"error on '{role.text_content()}': {e}")
+            logger.info(f"successfully retrieved '{role.text_content()}' content")
 
-                logger.info(f"successfully retrieved '{role.text_content()}' content")
-
-            browser.close()
+        browser.close()
 
         headers = {"Content-Type": "application/json"}
         params = {"key": os.getenv("GOOGLE_API_KEY", "")}
@@ -119,7 +108,8 @@ def download_content():
             ],
         }
 
-        model_name = models.get(model).model.split("/")[1]
+        # model_name = models.get(model).model.split("/")[1]
+        model_name = "gemini-1.5-flash"
 
         response = requests.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
@@ -132,10 +122,29 @@ def download_content():
         result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
 
         filename = path.stem
+        logger.info("writing to file...")
+
         with open(f"results/{title}_{ts}.md", mode="w") as f:
             f.write(result)
 
 
+def main():
+    paths = list(Path(__file__).parent.glob("prompts/prompt*.toml"))
+    logger.info(f"retrieved {len(paths)} prompts")
+
+    for path in paths:
+        with open(path, mode="rb") as f:
+            prompt_content = tomllib.load(f)
+
+        task = prompt_content["task"]
+
+        if task == "browse":
+            asyncio.run(browse_content(prompt_content, path))
+        elif task == "scrape":
+            download_content(prompt_content, path)
+        else:
+            raise ValueError("unknown task")
+
+
 if "__name__" == "__name__":
-    # asyncio.run(main())
-    download_content()
+    main()
