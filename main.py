@@ -29,6 +29,7 @@ max_input_tokens = int(os.environ.get("MAX_INPUT_TOKENS", 120000))
 headless = bool(int(os.environ.get("HEADLESS"), 0))
 browser = Browser(config=BrowserConfig(headless=headless))
 ts = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d_%H%M%S")
+discord_webhook = os.environ.get("DISCORD_WEBHOOK")
 
 models = {
     "openai": ChatOpenAI(model="gpt-4o-mini"),
@@ -57,6 +58,14 @@ async def browse_content(prompt_content, path):
 
     except TimeoutError as e:
         logger.exception(e)
+
+
+def chunk_string(input_string, max_length):
+    chunks = []
+    while input_string:
+        chunks.append(input_string[:max_length])
+        input_string = input_string[max_length:]
+    return chunks
 
 
 def download_content(prompt_content, path):
@@ -124,12 +133,22 @@ def download_content(prompt_content, path):
 
         logger.info("complete")
         result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        result = re.sub(r"\n{3,}", "\n\n", result)
 
         filename = path.stem
-        logger.info("writing to file...")
+        logger.info("posting to channel...")
 
-        with open(f"results/{title}_{ts}.md", mode="w") as f:
-            f.write(result)
+        # with open(f"results/{title}_{ts}.md", mode="w") as f:
+        #     f.write(result)
+
+        heading = f"# Postings for: **{title}**\n\n"
+        heading_resp = requests.post(discord_webhook, json={"content": heading.upper()})
+
+        chunks = chunk_string(result, max_length=2000)
+
+        for chunk in chunks:
+            json_result = {"content": chunk}
+            discord_resp = requests.post(url=discord_webhook, json=json_result)
 
 
 def main():
