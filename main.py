@@ -73,12 +73,13 @@ def download_content(prompt_content, path):
             page.wait_for_selector("body")
 
             links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
+            entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
+            entities = [e.text_content() for e in entities]
 
             data = {}
 
-            for link in links:
+            for link, entity in zip(links, entities):
                 link.click()
-                entity = page.query_selector("div.wHYlTd.MKCbgd.a3jPc").text_content()
 
                 try:
                     page.get_by_role(
