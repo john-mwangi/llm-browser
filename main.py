@@ -68,27 +68,30 @@ def download_content(prompt_content, path):
         browser = p.chromium.launch(headless=headless)
         page = browser.new_page()
         page.goto(url)
-        page.wait_for_selector("body")
 
-        # extract jobs and their descriptions
-        roles = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
+        if url.startswith("https://www.google"):
+            page.wait_for_selector("body")
 
-        data = {}
+            links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
 
-        for role in roles:
-            role.click()
-            entity = page.query_selector("div.wHYlTd.MKCbgd.a3jPc").text_content()
+            data = {}
 
-            try:
-                page.get_by_role(role="button", name="Show full description").click()
-                page.wait_for_load_state("domcontentloaded")
-                content = page.query_selector("div.NgUYpe").text_content()
-                data[role.text_content()] = f"Entity: {entity}\n\n" + content
+            for link in links:
+                link.click()
+                entity = page.query_selector("div.wHYlTd.MKCbgd.a3jPc").text_content()
 
-            except Exception as e:
-                logger.exception(f"error on '{role.text_content()}': {e}")
+                try:
+                    page.get_by_role(
+                        role="button", name="Show full description"
+                    ).click()
+                    page.wait_for_load_state("domcontentloaded")
+                    content = page.query_selector("div.NgUYpe").text_content()
+                    data[link.text_content()] = f"Entity: {entity}\n\n" + content
 
-            logger.info(f"successfully retrieved '{role.text_content()}' content")
+                except Exception as e:
+                    logger.exception(f"error on '{link.text_content()}': {e}")
+
+                logger.info(f"successfully retrieved '{link.text_content()}' content")
 
         browser.close()
 
