@@ -85,6 +85,10 @@ def download_content(prompt_content, path):
             entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
             entities = [e.text_content() for e in entities]
 
+            if len(links) == 0:
+                logger.warning("there was an issue extracting links")
+                return
+
             data = {}
 
             for link, entity in zip(links, entities):
