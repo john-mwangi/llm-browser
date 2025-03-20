@@ -27,3 +27,11 @@ HEADLESS=1
 In the video below, the model was tasked with adding grocery items to cart, and checking out.
 
 [![AI Did My Groceries](https://github.com/user-attachments/assets/d9359085-bde6-41d4-aa4e-6520d0221872)](https://www.youtube.com/watch?v=L2Ya9PYNns8)
+
+## Docker
+This will build and run the Airflow container.
+```bash
+docker compose up
+docker build -t airflow . [--progress=plain]
+docker run -p 8085:8080 --name airflow airflow
+```

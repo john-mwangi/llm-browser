@@ -1,0 +1,11 @@
+services:
+  airflow:
+    container_name: airflow
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8085:8080
+    volumes:
+      - ./dags:/home/airflow/dags
+      - ./src:/home/airflow/src
