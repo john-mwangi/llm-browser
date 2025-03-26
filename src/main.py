@@ -21,6 +21,14 @@ from playwright.sync_api import sync_playwright
 
 load_dotenv(override=True)
 
+
+def set_logging():
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True
+    )
+
+
+set_logging()
 logger = logging.getLogger(__name__)
 
 tz = os.environ.get("TZ")
