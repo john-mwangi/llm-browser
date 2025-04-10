@@ -3,7 +3,7 @@ services:
     container_name: airflow
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.airflow
     ports:
       - 8085:8080
     volumes:
