@@ -1,22 +1,22 @@
 """Utility functions for the LLM browser application"""
 
-import asyncio
 import logging
 import os
 import re
-from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from zoneinfo import ZoneInfo
+from urllib.parse import quote_plus
 
 import requests
-from browser_use import Agent, Browser
+from browser_use import Agent
 from playwright._impl._errors import TimeoutError
 from playwright.sync_api import sync_playwright
+from pymongo import MongoClient
+from requests import Response
 
 
 class TaskType(Enum):
     """Enum representing different types of tasks that can be performed"""
+
     BROWSE = "browse"
     SCRAPE = "scrape"
 
@@ -59,11 +59,9 @@ async def browse_content(prompt_content, path, model, browser, max_input_tokens,
         logging.exception(e)
 
 
-def download_content(prompt_content, path, headless, discord_webhook, ts):
+def download_content(prompt_content, headless):
     """Download and process content from a URL"""
     url = prompt_content["url"]
-    prompt = prompt_content["prompt"]
-    title = re.sub("\s+", "_", prompt_content["title"])
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -96,48 +94,94 @@ def download_content(prompt_content, path, headless, discord_webhook, ts):
 
                 except Exception as e:
                     logging.exception(f"error on '{link.text_content()}': {e}")
+                    data[link.text_content()] = f"Entity: {entity}\n\n"
 
                 logging.info(f"successfully retrieved '{link.text_content()}' content")
 
         browser.close()
+        return data
 
-        headers = {"Content-Type": "application/json"}
-        params = {"key": os.getenv("GOOGLE_API_KEY", "")}
-        prompt += f"\ndata: {data}"
 
-        json_data = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt,
-                        },
-                    ],
-                },
-            ],
-        }
+def query_llm(data: dict, prompt: str):
+    """Queries an LLM model
 
-        model_name = "gemini-1.5-flash"
+    Args
+    ---
+    data: results of the scraping process
 
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
-            params=params,
-            headers=headers,
-            json=json_data,
-        )
+    Returns
+    ---
+    An API response
+    """
 
-        logging.info("complete")
-        result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-        result = re.sub(r"\n{3,}", "\n\n", result)
+    headers = {"Content-Type": "application/json"}
+    params = {"key": os.getenv("GOOGLE_API_KEY", "")}
+    prompt += f"\ndata: {data}"
 
-        filename = path.stem
-        logging.info("posting to channel...")
+    json_data = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt,
+                    },
+                ],
+            },
+        ],
+    }
 
-        heading = f"# Postings for: **{title}**\n\n"
-        heading_resp = requests.post(discord_webhook, json={"content": heading.upper()})
+    model_name = "gemini-1.5-flash"
 
-        chunks = chunk_string(result, max_length=2000)
+    response = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
+        params=params,
+        headers=headers,
+        json=json_data,
+    )
 
-        for chunk in chunks:
-            json_result = {"content": chunk}
-            discord_resp = requests.post(url=discord_webhook, json=json_result) 
+    logging.info("llm querying complete")
+
+    return response
+
+
+def get_mongodb_client():
+    """Establishes a MongoDB client
+
+    Returns
+    ---
+    Tuple of (MongoClient, database_name)
+    """
+
+    _USER = os.environ.get("_MONGO_UNAME")
+    _PASSWORD = quote_plus(os.environ.get("_MONGO_PWD"))
+    _HOST = os.environ.get("_MONGO_HOST")
+    _DB = os.environ.get("_MONGO_DB")
+    _PORT = os.environ.get("_MONGO_PORT")
+
+    uri = f"mongodb://{_USER}:{_PASSWORD}@{_HOST}:{_PORT}/?authSource={_DB}"
+
+    return MongoClient(uri), _DB
+
+
+def post_response(response: Response, webhook: str, title: str):
+    """Posts the LLM results to a Discord, WhatApp, Slack, etc. using the webhook
+
+    Args
+    ---
+    response: the response from the LLM
+    webhook: the webhook to post to
+    title: the title of the post
+    ts: timestamp
+    """
+    heading = f"# Postings for: **{title}**\n\n"
+    result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    result = heading + result
+
+    logging.info("posting to channel...")
+
+    chunks = chunk_string(result, max_length=2000)
+
+    for chunk in chunks:
+        json_result = {"content": chunk}
+        discord_resp = requests.post(url=webhook, json=json_result)

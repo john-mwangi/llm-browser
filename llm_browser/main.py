@@ -3,23 +3,19 @@
 import asyncio
 import logging
 import os
-import re
 import tomllib
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import requests
 from browser_use import Browser, BrowserConfig
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
-from playwright._impl._errors import TimeoutError
-from playwright.sync_api import sync_playwright
-
-from src.utils import set_logging, browse_content, download_content, TaskType
+from src import utils
+from src.utils import TaskType, set_logging
 
 load_dotenv(override=True)
 
@@ -50,14 +46,30 @@ def main():
         with open(path, mode="rb") as f:
             prompt_content = tomllib.load(f)
 
-        task = TaskType(prompt_content["task"])
+        try:
+            task = TaskType(prompt_content["task"])
+        except Exception as e:
+            raise ValueError(f"unknown task: {task}")
+
+        title = prompt_content["title"]
+        prompt = prompt_content["prompt"]
 
         if task == TaskType.BROWSE:
-            asyncio.run(browse_content(prompt_content, path, models.get(model), browser, max_input_tokens, ts))
-        elif task == TaskType.SCRAPE:
-            download_content(prompt_content, path, headless, discord_webhook, ts)
-        else:
-            raise ValueError(f"unknown task: {task}")
+            asyncio.run(
+                utils.browse_content(
+                    prompt_content,
+                    path,
+                    models.get(model),
+                    browser,
+                    max_input_tokens,
+                    ts,
+                )
+            )
+
+        if task == TaskType.SCRAPE:
+            data = utils.download_content(prompt_content, headless)
+            response = utils.query_llm(data=data, prompt=prompt)
+            utils.post_response(response=response, webhook=discord_webhook, title=title)
 
 
 if "__name__" == "__name__":
