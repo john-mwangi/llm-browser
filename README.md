@@ -5,7 +5,7 @@ Browses the Internet autonomously using an LLM model. Reads the prompt from a te
 ## Features
 1. Allows you to save a list of frequently used prompts.
 2. Works with Ollama to bypass commmercial API rate limits.
-3. Sends an email of the results or alternatively, saves them locally.
+3. Sends an alert of the results or alternatively, saves them locally.
 
 ## Usage
 1. Create a python v3.11 virtual environment and install the requirements.
@@ -34,4 +34,22 @@ This will build and run the Airflow container.
 docker compose up
 docker build -t airflow . [--progress=plain]
 docker run -p 8085:8080 --name airflow airflow
+```
+
+## Adding a Prompt
+Use mongo-express to add a prompt. 
+
+Alternative, you can use the terminal.
+
+```bash
+use llm_browser
+
+db.prompts.insertOne( { 
+task: "scrape", 
+title: "Prompt Title",
+url: "url_to_scrape",
+prompt: "This is the prompt and return to me the results as a \
+markdown:\n\n \
+result format: # <title> \n <entity> \n <summary>"
+} )
 ```

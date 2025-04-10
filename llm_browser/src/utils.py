@@ -59,8 +59,14 @@ async def browse_content(prompt_content, path, model, browser, max_input_tokens,
         logging.exception(e)
 
 
-def download_content(prompt_content, headless):
-    """Download and process content from a URL"""
+def download_content(prompt_content: dict, headless: bool):
+    """Download and process content from a URL
+
+    Args
+    ---
+    prompt_content: a record containing the url, title, query, etc.
+    headless: boolean indicating whether to use a headless browser
+    """
     url = prompt_content["url"]
 
     with sync_playwright() as p:
@@ -158,7 +164,7 @@ def get_mongodb_client():
     _DB = os.environ.get("_MONGO_DB")
     _PORT = os.environ.get("_MONGO_PORT")
 
-    uri = f"mongodb://{_USER}:{_PASSWORD}@{_HOST}:{_PORT}/?authSource={_DB}"
+    uri = f"mongodb://{_USER}:{_PASSWORD}@{_HOST}:{_PORT}/"
 
     return MongoClient(uri), _DB
 

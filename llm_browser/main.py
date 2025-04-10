@@ -39,37 +39,44 @@ models = {
 
 
 def main():
-    paths = list(Path(__file__).parent.glob("prompts/prompt*.toml"))
-    logger.info(f"retrieved {len(paths)} prompts")
+    client, db_name = utils.get_mongodb_client()
 
-    for path in paths:
-        with open(path, mode="rb") as f:
-            prompt_content = tomllib.load(f)
+    with client:
+        db = client[db_name]
+        prompts = db.prompts
+        counts_ = prompts.estimated_document_count()
+        logger.info(f"retrieved {counts_} prompts")
+        docs = prompts.find()
 
-        try:
-            task = TaskType(prompt_content["task"])
-        except Exception as e:
-            raise ValueError(f"unknown task: {task}")
+        for doc in docs:
+            try:
+                task = TaskType(doc["task"])
+            except Exception as e:
+                raise ValueError(f"unknown task: {task}")
 
-        title = prompt_content["title"]
-        prompt = prompt_content["prompt"]
+            title = doc["title"]
+            prompt = doc["prompt"]
 
-        if task == TaskType.BROWSE:
-            asyncio.run(
-                utils.browse_content(
-                    prompt_content,
-                    path,
-                    models.get(model),
-                    browser,
-                    max_input_tokens,
-                    ts,
+            if task == TaskType.BROWSE:
+                asyncio.run(
+                    utils.browse_content(
+                        prompt_content=dict(doc),
+                        path=None,
+                        model=models.get(model),
+                        browser=browser,
+                        max_input_tokens=max_input_tokens,
+                        ts=ts,
+                    )
                 )
-            )
 
-        if task == TaskType.SCRAPE:
-            data = utils.download_content(prompt_content, headless)
-            response = utils.query_llm(data=data, prompt=prompt)
-            utils.post_response(response=response, webhook=discord_webhook, title=title)
+            if task == TaskType.SCRAPE:
+                data = utils.download_content(
+                    prompt_content=dict(doc), headless=headless
+                )
+                response = utils.query_llm(data=data, prompt=prompt)
+                utils.post_response(
+                    response=response, webhook=discord_webhook, title=title
+                )
 
 
 if "__name__" == "__name__":
