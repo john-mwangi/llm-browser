@@ -1,21 +1,26 @@
-# ref: https://airflow.apache.org/docs/apache-airflow/stable/start.html
-
 FROM python:3.11.11-slim-bullseye
+COPY . .
 
-ENV AIRFLOW_HOME=/home/airflow
-ENV AIRFLOW__CORE__LOAD_EXAMPLES=False
+RUN apt-get update && \
+    apt-get install -y build-essential \
+    xvfb \
+    libgtk-3-0 \
+    libnotify-dev \
+    libgconf-2-4 \
+    libnss3 \
+    libxss1 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
 
-ARG PYTHON_VERSION=3.11
-ARG AIRFLOW_VERSION=2.10.5
-ARG CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+RUN pip install -r requirements.txt && \
+    playwright install-deps  && \
+    playwright install
 
-WORKDIR ${AIRFLOW_HOME}
-COPY requirements.txt .
+WORKDIR /llm_browser
+CMD ["xvfb-run", "python", "main.py"]
 
-# RUN pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
-RUN pip install -r requirements.txt
-RUN pip install "apache-airflow==${AIRFLOW_VERSION}"
-
-# default username and password will be in the startup logs
-# /home/airflow/standalone_admin_password.txt
-CMD ["airflow", "standalone"]
+# CMD bash -c "cd llm_browser && python main.py"
+# DOCKER_BUILDKIT=1 docker build --progress=plain -t llm_browser .
+# docker run llm_browser
+# docker inspect mongodb | grep NetworkMode
+# docker run --network=hetzner_default llm_browser
