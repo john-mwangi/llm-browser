@@ -73,7 +73,7 @@ def download_content(prompt_content, headless):
 
             links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
             entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
-            entities = [e.text_content() for e in entities]
+            entities = [e.text_content().strip() for e in entities]
 
             if len(links) == 0:
                 logging.warning("there was an issue extracting links")
@@ -171,16 +171,16 @@ def post_response(response: Response, webhook: str, title: str):
     response: the response from the LLM
     webhook: the webhook to post to
     title: the title of the post
-    ts: timestamp
     """
     heading = f"# Postings for: **{title}**\n\n"
     result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-    result = re.sub(r"\n{3,}", "\n\n", result)
-    result = heading + result
+    r1 = re.sub(r"\n{2,}", "\n", result, flags=re.MULTILINE)
+    r2 = re.sub(r"^#\s*(.+?)\s*$", r"\n**\1**", r1, flags=re.MULTILINE)
+    r3 = heading + r2
 
     logging.info("posting to channel...")
 
-    chunks = chunk_string(result, max_length=2000)
+    chunks = chunk_string(r3, max_length=2000)
 
     for chunk in chunks:
         json_result = {"content": chunk}
