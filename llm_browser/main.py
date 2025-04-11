@@ -3,9 +3,7 @@
 import asyncio
 import logging
 import os
-import tomllib
 from datetime import datetime
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from browser_use import Browser, BrowserConfig
@@ -33,7 +31,7 @@ discord_webhook = os.environ.get("DISCORD_WEBHOOK")
 models = {
     "openai": ChatOpenAI(model="gpt-4o-mini"),
     "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
-    "ollama": ChatOllama(model="qwen2.5:7b"),
+    "ollama": ChatOllama(model="llama3.2:latest"),
     "gemini": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
 }
 

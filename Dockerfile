@@ -1,5 +1,6 @@
 FROM mcr.microsoft.com/playwright/python:v1.50.0-noble
 COPY . /app
+RUN curl -fsSL https://ollama.com/install.sh | sh && ollama pull llama3.2
 RUN pip install -r /app/requirements.txt
 WORKDIR /app/llm_browser
 
