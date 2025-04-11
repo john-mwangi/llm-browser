@@ -32,7 +32,8 @@ models = {
     "openai": ChatOpenAI(model="gpt-4o-mini"),
     "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
     "ollama": ChatOllama(model="llama3.2:latest"),
-    "gemini": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
+    # "gemini": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
+    "gemini": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
 }
 
 
@@ -71,7 +72,9 @@ def main():
                 data = utils.download_content(
                     prompt_content=dict(doc), headless=headless
                 )
-                response = utils.query_llm(data=data, prompt=prompt)
+                response = utils.query_llm(
+                    data=data, prompt=prompt, model=models.get(model)
+                )
                 utils.post_response(
                     response=response, webhook=discord_webhook, title=title
                 )

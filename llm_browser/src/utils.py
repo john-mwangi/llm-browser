@@ -1,5 +1,6 @@
 """Utility functions for the LLM browser application"""
 
+import json
 import logging
 import os
 import re
@@ -108,17 +109,21 @@ def download_content(prompt_content: dict, headless: bool):
         return data
 
 
-def query_llm(data: dict, prompt: str):
+def query_google(data: dict, prompt: str, model):
     """Queries an LLM model
 
     Args
     ---
     data: results of the scraping process
+    prompt: the prompt to use
+    model: the LangChain model
 
     Returns
     ---
     An API response
     """
+
+    logging.info("querying llm...")
 
     headers = {"Content-Type": "application/json"}
     params = {"key": os.getenv("GOOGLE_API_KEY", "")}
@@ -136,7 +141,7 @@ def query_llm(data: dict, prompt: str):
         ],
     }
 
-    model_name = "gemini-1.5-flash"
+    model_name = model.model.split("/")[-1]
 
     response = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
@@ -145,9 +150,26 @@ def query_llm(data: dict, prompt: str):
         json=json_data,
     )
 
-    logging.info("llm querying complete")
-
     return response
+
+
+def query_llm(data: dict, prompt: str, model) -> str:
+    """Queries an LLM model
+
+    Args
+    ---
+    - data: results of the scraping process
+    - prompt: the prompt to use
+    - model: the LangChain model
+
+    Returns
+    ---
+    The LLM response
+    """
+    logging.info("querying llm...")
+    messages = [("system", prompt), ("human", json.dumps(data))]
+    msg = model.invoke(messages)
+    return msg.content
 
 
 def get_mongodb_client():
@@ -169,7 +191,7 @@ def get_mongodb_client():
     return MongoClient(uri), _DB
 
 
-def post_response(response: Response, webhook: str, title: str):
+def post_response(response: Response | str, webhook: str, title: str):
     """Posts the LLM results to a Discord, WhatApp, Slack, etc. using the webhook
 
     Args
@@ -179,14 +201,19 @@ def post_response(response: Response, webhook: str, title: str):
     title: the title of the post
     """
     heading = f"# Postings for: **{title}**\n\n"
-    result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-    r1 = re.sub(r"\n{2,}", "\n", result, flags=re.MULTILINE)
-    r2 = re.sub(r"^#\s*(.+?)\s*$", r"\n**\1**", r1, flags=re.MULTILINE)
-    r3 = heading + r2
+
+    if isinstance(response, Response):
+        result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        r1 = re.sub(r"\n{2,}", "\n", result, flags=re.MULTILINE)
+        r2 = re.sub(r"^#\s*(.+?)\s*$", r"\n**\1**", r1, flags=re.MULTILINE)
+        post = heading + r2
+
+    if isinstance(response, str):
+        post = heading + response
 
     logging.info("posting to channel...")
 
-    chunks = chunk_string(r3, max_length=2000)
+    chunks = chunk_string(post, max_length=2000)
 
     for chunk in chunks:
         json_result = {"content": chunk}
