@@ -117,7 +117,8 @@ def download_content(prompt_content: dict, headless: bool):
             locale='en-US',
             permissions=['notifications'],
         )
-        page = context.new_page()
+        # page = context.new_page()
+        page = browser.new_page()
         page.goto(url)
 
         if url.startswith("https://www.google"):
