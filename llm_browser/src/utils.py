@@ -69,10 +69,55 @@ def download_content(prompt_content: dict, headless: bool):
     headless: boolean indicating whether to use a headless browser
     """
     url = prompt_content["url"]
+    
+    browser_args = [
+        '--window-size=1300,570',
+        '--window-position=000,000',
+        '--disable-dev-shm-usage',
+        '--no-sandbox',
+        '--disable-web-security',
+        '--disable-features=site-per-process',
+        '--disable-setuid-sandbox',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--use-gl=egl',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-background-networking',
+        '--enable-features=NetworkService,NetworkServiceInProcess',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-breakpad',
+        '--disable-client-side-phishing-detection',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--disable-extensions',
+        '--disable-features=Translate',
+        '--disable-hang-monitor',
+        '--disable-ipc-flooding-protection',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--disable-renderer-backgrounding',
+        '--disable-sync',
+        '--force-color-profile=srgb',
+        '--metrics-recording-only',
+        '--enable-automation',
+        '--password-store=basic',
+        '--use-mock-keychain',
+        '--hide-scrollbars',
+        '--mute-audio',
+        "--ignore-certificate-errors",
+        "--enable-webgl",
+    ]   
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
-        page = browser.new_page()
+        browser = p.chromium.launch(headless=headless, args=browser_args)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
+            locale='en-US',
+            permissions=['notifications'],
+        )
+        page = context.new_page()
         page.goto(url)
 
         if url.startswith("https://www.google"):
@@ -105,6 +150,7 @@ def download_content(prompt_content: dict, headless: bool):
 
                 logging.info(f"successfully retrieved '{link.text_content()}' content")
 
+        context.close()
         browser.close()
         return data
 
