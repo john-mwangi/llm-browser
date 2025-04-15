@@ -1,7 +1,6 @@
 *.env
 prompts
 drafts
-tests
 results
 *.gif
 __pycache__
