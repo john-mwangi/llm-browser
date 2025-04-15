@@ -4,6 +4,8 @@ RUN pip install -r /app/requirements.txt
 
 RUN apt-get update && apt-get install -y lshw
 RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# ref: https://superuser.com/questions/1325500/running-a-command-in-the-background
 RUN ollama serve > /dev/null & \
     sleep 2 \
     && ollama pull llama3.2
