@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 from playwright_stealth import stealth_sync
 
-from ..src.utils import download_content_google
+from ..src.utils import ROOT_DIR, download_content_google
 
 load_dotenv()
 
@@ -41,5 +41,9 @@ def test_google_search():
     json_str = byte_data.decode("utf-8")
     data = json.loads(json_str)
 
-    with open("res.json", mode="w", encoding="utf-8") as f:
+    results_dir = ROOT_DIR / "results"
+    file_name = "google_search_results"
+    file_path = os.path.join(results_dir, file_name)
+
+    with open(file_path, mode="w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
