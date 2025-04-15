@@ -5,14 +5,57 @@ import logging
 import os
 import re
 from enum import Enum
+from pathlib import Path
 from urllib.parse import quote_plus
 
 import requests
 from browser_use import Agent
+from bs4 import BeautifulSoup
 from playwright._impl._errors import TimeoutError
 from playwright.sync_api import sync_playwright
 from pymongo import MongoClient
 from requests import Response
+
+ROOT_DIR = Path(__file__).parent.parent
+browser_args = [
+    "--window-size=1300,570",
+    "--window-position=000,000",
+    "--disable-dev-shm-usage",
+    "--no-sandbox",
+    "--disable-web-security",
+    "--disable-features=site-per-process",
+    "--disable-setuid-sandbox",
+    "--disable-accelerated-2d-canvas",
+    "--no-first-run",
+    "--no-zygote",
+    "--use-gl=egl",
+    "--disable-blink-features=AutomationControlled",
+    "--disable-background-networking",
+    "--enable-features=NetworkService,NetworkServiceInProcess",
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-breakpad",
+    "--disable-client-side-phishing-detection",
+    "--disable-component-extensions-with-background-pages",
+    "--disable-default-apps",
+    "--disable-extensions",
+    "--disable-features=Translate",
+    "--disable-hang-monitor",
+    "--disable-ipc-flooding-protection",
+    "--disable-popup-blocking",
+    "--disable-prompt-on-repost",
+    "--disable-renderer-backgrounding",
+    "--disable-sync",
+    "--force-color-profile=srgb",
+    "--metrics-recording-only",
+    "--enable-automation",
+    "--password-store=basic",
+    "--use-mock-keychain",
+    "--hide-scrollbars",
+    "--mute-audio",
+    "--ignore-certificate-errors",
+    "--enable-webgl",
+]
 
 
 class TaskType(Enum):
@@ -60,7 +103,7 @@ async def browse_content(prompt_content, path, model, browser, max_input_tokens,
         logging.exception(e)
 
 
-def download_content(prompt_content: dict, headless: bool):
+def download_content_google(prompt_content: dict, headless: bool):
     """Download and process content from a URL
 
     Args
@@ -69,46 +112,6 @@ def download_content(prompt_content: dict, headless: bool):
     headless: boolean indicating whether to use a headless browser
     """
     url = prompt_content["url"]
-
-    browser_args = [
-        "--window-size=1300,570",
-        "--window-position=000,000",
-        "--disable-dev-shm-usage",
-        "--no-sandbox",
-        "--disable-web-security",
-        "--disable-features=site-per-process",
-        "--disable-setuid-sandbox",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--use-gl=egl",
-        "--disable-blink-features=AutomationControlled",
-        "--disable-background-networking",
-        "--enable-features=NetworkService,NetworkServiceInProcess",
-        "--disable-background-timer-throttling",
-        "--disable-backgrounding-occluded-windows",
-        "--disable-breakpad",
-        "--disable-client-side-phishing-detection",
-        "--disable-component-extensions-with-background-pages",
-        "--disable-default-apps",
-        "--disable-extensions",
-        "--disable-features=Translate",
-        "--disable-hang-monitor",
-        "--disable-ipc-flooding-protection",
-        "--disable-popup-blocking",
-        "--disable-prompt-on-repost",
-        "--disable-renderer-backgrounding",
-        "--disable-sync",
-        "--force-color-profile=srgb",
-        "--metrics-recording-only",
-        "--enable-automation",
-        "--password-store=basic",
-        "--use-mock-keychain",
-        "--hide-scrollbars",
-        "--mute-audio",
-        "--ignore-certificate-errors",
-        "--enable-webgl",
-    ]
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless, args=browser_args)
@@ -121,35 +124,40 @@ def download_content(prompt_content: dict, headless: bool):
         page = browser.new_page()
         page.goto(url)
 
-        if url.startswith("https://www.google"):
-            page.wait_for_selector("body")
+        # check for captcha challenge
+        captcha = page.locator(
+            'iframe[name="a-2bkr1j4vqdhy"]'
+        ).content_frame.get_by_role("checkbox", name="I'm not a robot")
 
-            links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
-            entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
-            entities = [e.text_content().strip() for e in entities]
+        if captcha:
+            page.pause()
 
-            if len(links) == 0:
-                logging.warning("there was an issue extracting links")
-                return
+        page.wait_for_selector("body")
 
-            data = {}
+        links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
+        entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
+        entities = [e.text_content().strip() for e in entities]
 
-            for link, entity in zip(links, entities):
-                link.click()
+        if len(links) == 0:
+            logging.warning("there was an issue extracting links")
+            raise ValueError
 
-                try:
-                    page.get_by_role(
-                        role="button", name="Show full description"
-                    ).click()
-                    page.wait_for_load_state("domcontentloaded")
-                    content = page.query_selector("div.NgUYpe").text_content()
-                    data[link.text_content()] = f"Entity: {entity}\n\n" + content
+        data = {}
 
-                except Exception as e:
-                    logging.exception(f"error on '{link.text_content()}': {e}")
-                    data[link.text_content()] = f"Entity: {entity}\n\n"
+        for link, entity in zip(links, entities):
+            link.click()
 
-                logging.info(f"successfully retrieved '{link.text_content()}' content")
+            try:
+                page.get_by_role(role="button", name="Show full description").click()
+                page.wait_for_load_state("domcontentloaded")
+                content = page.query_selector("div.NgUYpe").text_content()
+                data[link.text_content()] = f"Entity: {entity}\n\n" + content
+
+            except Exception as e:
+                logging.exception(f"error on '{link.text_content()}': {e}")
+                data[link.text_content()] = f"Entity: {entity}\n\n"
+
+            logging.info(f"successfully retrieved '{link.text_content()}' content")
 
         context.close()
         browser.close()
@@ -265,3 +273,50 @@ def post_response(response: Response | str, webhook: str, title: str):
     for chunk in chunks:
         json_result = {"content": chunk}
         discord_resp = requests.post(url=webhook, json=json_result)
+
+
+def extract_transcript(url: str):
+    """Extracts the Fireflies transcript
+
+    Args
+    ---
+    url: of the Fireflies transcript
+    """
+
+    meeting_name = url.split("::")[0].split("/")[-1]
+    results_dir = ROOT_DIR / "results"
+    file_name = f"{meeting_name}.txt"
+    file_path = os.path.join(results_dir, file_name)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(url)
+        page.wait_for_selector(".paragraph-root")
+        html = page.content()
+        browser.close()
+
+    soup = BeautifulSoup(html, "html.parser")
+    paragraphs = soup.find_all("div", class_="paragraph-root")
+
+    markdown_output = []
+
+    for para in paragraphs:
+        # Extract name
+        name_span = para.find("span", class_="name")
+        name = name_span.text.strip() if name_span else "Unknown"
+
+        # Extract timestamp
+        timestamp_span = para.find("span", class_="sc-871c1b8d-0")
+        timestamp = timestamp_span.text.strip() if timestamp_span else "00:00"
+
+        # Extract message
+        message_div = para.find("div", class_="transcript-sentence")
+        message = message_div.text.strip() if message_div else ""
+
+        # Format the line
+        markdown_line = f"{name} - {timestamp}\n{message}\n"
+        markdown_output.append(markdown_line)
+
+    with open(file_path, "w") as f:
+        f.writelines(markdown_output)
