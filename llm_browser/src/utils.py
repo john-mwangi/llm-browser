@@ -11,10 +11,17 @@ from urllib.parse import quote_plus
 import requests
 from browser_use import Agent
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from playwright._impl._errors import TimeoutError
 from playwright.sync_api import sync_playwright
 from pymongo import MongoClient
 from requests import Response
+
+load_dotenv()
 
 ROOT_DIR = Path(__file__).parent.parent
 browser_args = [
@@ -72,6 +79,15 @@ def set_logging():
     )
 
 
+models = {
+    "openai": ChatOpenAI(model="gpt-4o-mini"),
+    "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
+    "ollama": ChatOllama(model="llama3.2:latest"),
+    "gemini-vision": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
+    "gemini-text": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
+}
+
+
 def chunk_string(input_string, max_length):
     """Split a string into chunks of specified maximum length"""
     chunks = []
@@ -81,9 +97,8 @@ def chunk_string(input_string, max_length):
     return chunks
 
 
-async def browse_content(prompt_content, path, model, browser, max_input_tokens, ts):
+async def browse_content(prompt, model, browser, max_input_tokens):
     """Browse content using the agent"""
-    prompt = prompt_content["prompt"]
     agent = Agent(
         task=prompt,
         llm=model,
@@ -93,17 +108,11 @@ async def browse_content(prompt_content, path, model, browser, max_input_tokens,
 
     logging.info(f"Using agent: {agent.model_name}")
 
-    try:
-        result = await agent.run()
-        filename = path.stem
-        with open(f"results/{filename}_{ts}.md", mode="w") as f:
-            f.write(result.final_result())
-
-    except TimeoutError as e:
-        logging.exception(e)
+    result = await agent.run()
+    return result
 
 
-def download_content_google(prompt_content: dict, headless: bool):
+def download_content_google(prompt_context: dict, headless: bool):
     """Download and process content from a URL
 
     Args
@@ -111,7 +120,7 @@ def download_content_google(prompt_content: dict, headless: bool):
     prompt_content: a record containing the url, title, query, etc.
     headless: boolean indicating whether to use a headless browser
     """
-    url = prompt_content["url"]
+    url = prompt_context["url"]
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless, args=browser_args)
@@ -129,7 +138,7 @@ def download_content_google(prompt_content: dict, headless: bool):
             'iframe[name="a-2bkr1j4vqdhy"]'
         ).content_frame.get_by_role("checkbox", name="I'm not a robot")
 
-        if captcha:
+        if captcha.is_visible():
             page.pause()
 
         page.wait_for_selector("body")
