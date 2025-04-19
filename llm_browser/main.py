@@ -42,8 +42,10 @@ def main():
 
     with client:
         db = client[db_name]
-        prompts = db.prompts
-        context = db.context
+        prompts = db["prompts"]
+        context = db["context"]
+        resumes = db["resumes"]
+
         counts_ = context.estimated_document_count()
         logger.info(f"retrieved {counts_} tasks")
         docs = context.find()
@@ -57,9 +59,11 @@ def main():
             title = doc["title"]
 
             # prompt = prompts.find_one({"type": "google"}, collation={"strength": 2, "locale": "en"})
-            prompt = prompts.find_one(
-                {"type": {"$regex": "^google$", "$options": "i"}}
-            )["prompt"]
+            # prompt = prompts.find_one(
+            #     {"type": {"$regex": "^google$", "$options": "i"}}
+            # )["prompt"]
+            prompt = prompts.find_one({"type": "google_augmented"})["prompt"]
+            resume = resumes.find_one({"type": "data engineer"})["resume"]
 
             if task == TaskType.BROWSE:
                 asyncio.run(
@@ -78,7 +82,9 @@ def main():
                     prompt_context=dict(doc), headless=headless
                 )
                 response = utils.query_llm(
-                    data=data, prompt=prompt, model=models.get("gemini-text")
+                    data={**data, **{"resume": resume}},
+                    prompt=prompt,
+                    model=models.get("gemini-text"),
                 )
                 utils.post_response(
                     response=response, webhook=discord_webhook, title=title

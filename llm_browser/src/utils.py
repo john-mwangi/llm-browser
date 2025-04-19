@@ -128,7 +128,7 @@ def download_content_google(prompt_context: dict, headless: bool):
             'iframe[name="a-2bkr1j4vqdhy"]'
         ).content_frame.get_by_role("checkbox", name="I'm not a robot")
 
-        if captcha:
+        if captcha.is_visible():
             page.pause()
 
         page.wait_for_selector("body")
