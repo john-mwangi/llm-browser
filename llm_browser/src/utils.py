@@ -81,9 +81,8 @@ def chunk_string(input_string, max_length):
     return chunks
 
 
-async def browse_content(prompt_content, path, model, browser, max_input_tokens, ts):
+async def browse_content(prompt, path, model, browser, max_input_tokens, ts):
     """Browse content using the agent"""
-    prompt = prompt_content["prompt"]
     agent = Agent(
         task=prompt,
         llm=model,
@@ -103,7 +102,7 @@ async def browse_content(prompt_content, path, model, browser, max_input_tokens,
         logging.exception(e)
 
 
-def download_content_google(prompt_content: dict, headless: bool):
+def download_content_google(prompt_context: dict, headless: bool):
     """Download and process content from a URL
 
     Args
@@ -111,7 +110,7 @@ def download_content_google(prompt_content: dict, headless: bool):
     prompt_content: a record containing the url, title, query, etc.
     headless: boolean indicating whether to use a headless browser
     """
-    url = prompt_content["url"]
+    url = prompt_context["url"]
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless, args=browser_args)

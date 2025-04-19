@@ -25,7 +25,7 @@ def test_stealth(url: str):
 def test_download_content():
     url = os.environ.get("GOOGLE_SEARCH_URL")
     headless = os.environ.get("HEADLESS")
-    data = download_content_google(prompt_content={"url": url}, headless=headless)
+    data = download_content_google(prompt_context={"url": url}, headless=headless)
 
 
 def test_google_search():
