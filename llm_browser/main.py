@@ -32,8 +32,8 @@ models = {
     "openai": ChatOpenAI(model="gpt-4o-mini"),
     "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
     "ollama": ChatOllama(model="llama3.2:latest"),
-    "gemini": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
-    "gemini-old": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
+    "gemini-vision": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
+    "gemini-text": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
 }
 
 
@@ -43,9 +43,10 @@ def main():
     with client:
         db = client[db_name]
         prompts = db.prompts
-        counts_ = prompts.estimated_document_count()
-        logger.info(f"retrieved {counts_} prompts")
-        docs = prompts.find()
+        context = db.context
+        counts_ = context.estimated_document_count()
+        logger.info(f"retrieved {counts_} tasks")
+        docs = context.find()
 
         for doc in docs:
             try:
@@ -54,12 +55,16 @@ def main():
                 raise ValueError(f"unknown task: {task}")
 
             title = doc["title"]
-            prompt = doc["prompt"]
+
+            # prompt = prompts.find_one({"type": "google"}, collation={"strength": 2, "locale": "en"})
+            prompt = prompts.find_one(
+                {"type": {"$regex": "^google$", "$options": "i"}}
+            )["prompt"]
 
             if task == TaskType.BROWSE:
                 asyncio.run(
                     utils.browse_content(
-                        prompt_content=dict(doc),
+                        prompt=prompt,
                         path=None,
                         model=models.get(model),
                         browser=browser,
@@ -70,10 +75,10 @@ def main():
 
             if task == TaskType.SCRAPE:
                 data = utils.download_content_google(
-                    prompt_content=dict(doc), headless=headless
+                    prompt_context=dict(doc), headless=headless
                 )
                 response = utils.query_llm(
-                    data=data, prompt=prompt, model=models.get("gemini-old")
+                    data=data, prompt=prompt, model=models.get("gemini-text")
                 )
                 utils.post_response(
                     response=response, webhook=discord_webhook, title=title
