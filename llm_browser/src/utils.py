@@ -16,8 +16,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
-from playwright._impl._errors import TimeoutError
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Page, sync_playwright
 from pymongo import MongoClient
 from requests import Response
 
@@ -112,6 +111,22 @@ async def browse_content(prompt, model, browser, max_input_tokens):
     return result
 
 
+def check_captcha(page: Page):
+    """Checks if a page as a captcha challenge"""
+
+    captcha_selectors = [
+        ".g-recaptcha",
+        "#recaptcha",
+        "#hcaptcha",
+        ".h-captcha",
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="hcaptcha"]',
+    ]
+
+    has_captcha = any([page.is_visible(selector) for selector in captcha_selectors])
+    return has_captcha
+
+
 def download_content_google(prompt_context: dict, headless: bool):
     """Download and process content from a URL
 
@@ -134,12 +149,11 @@ def download_content_google(prompt_context: dict, headless: bool):
         page.goto(url)
 
         # check for captcha challenge
-        captcha = page.locator(
-            'iframe[name="a-2bkr1j4vqdhy"]'
-        ).content_frame.get_by_role("checkbox", name="I'm not a robot")
-
-        if captcha.is_visible():
+        has_captcha = check_captcha(page)
+        if has_captcha:
             page.pause()
+
+        page.is_visible()
 
         page.wait_for_selector("body")
 
@@ -156,7 +170,9 @@ def download_content_google(prompt_context: dict, headless: bool):
             link.click()
 
             try:
-                page.get_by_role(role="button", name="Show full description").click()
+                page.get_by_role(role="button", name="Show full description").click(
+                    timeout=5000
+                )
                 page.wait_for_load_state("domcontentloaded")
                 content = page.query_selector("div.NgUYpe").text_content()
                 data[link.text_content()] = f"Entity: {entity}\n\n" + content
