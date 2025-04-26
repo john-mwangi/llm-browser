@@ -4,71 +4,16 @@ import json
 import logging
 import os
 import re
-from enum import Enum
-from pathlib import Path
 from urllib.parse import quote_plus
 
 import requests
-from browser_use import Agent
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
-from langchain_openai import ChatOpenAI
 from playwright.sync_api import Page, sync_playwright
 from pymongo import MongoClient
 from requests import Response
 
 load_dotenv()
-
-ROOT_DIR = Path(__file__).parent.parent
-browser_args = [
-    "--window-size=1300,570",
-    "--window-position=000,000",
-    "--disable-dev-shm-usage",
-    "--no-sandbox",
-    "--disable-web-security",
-    "--disable-features=site-per-process",
-    "--disable-setuid-sandbox",
-    "--disable-accelerated-2d-canvas",
-    "--no-first-run",
-    "--no-zygote",
-    "--use-gl=egl",
-    "--disable-blink-features=AutomationControlled",
-    "--disable-background-networking",
-    "--enable-features=NetworkService,NetworkServiceInProcess",
-    "--disable-background-timer-throttling",
-    "--disable-backgrounding-occluded-windows",
-    "--disable-breakpad",
-    "--disable-client-side-phishing-detection",
-    "--disable-component-extensions-with-background-pages",
-    "--disable-default-apps",
-    "--disable-extensions",
-    "--disable-features=Translate",
-    "--disable-hang-monitor",
-    "--disable-ipc-flooding-protection",
-    "--disable-popup-blocking",
-    "--disable-prompt-on-repost",
-    "--disable-renderer-backgrounding",
-    "--disable-sync",
-    "--force-color-profile=srgb",
-    "--metrics-recording-only",
-    "--enable-automation",
-    "--password-store=basic",
-    "--use-mock-keychain",
-    "--hide-scrollbars",
-    "--mute-audio",
-    "--ignore-certificate-errors",
-    "--enable-webgl",
-]
-
-
-class TaskType(Enum):
-    """Enum representing different types of tasks that can be performed"""
-
-    BROWSE = "browse"
-    SCRAPE = "scrape"
 
 
 def set_logging():
@@ -80,15 +25,6 @@ def set_logging():
     )
 
 
-models = {
-    "openai": ChatOpenAI(model="gpt-4o-mini"),
-    "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
-    "ollama": ChatOllama(model="llama3.2:latest"),
-    "gemini-vision": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
-    "gemini-text": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
-}
-
-
 def chunk_string(input_string, max_length):
     """Split a string into chunks of specified maximum length"""
     chunks = []
@@ -96,21 +32,6 @@ def chunk_string(input_string, max_length):
         chunks.append(input_string[:max_length])
         input_string = input_string[max_length:]
     return chunks
-
-
-async def browse_content(prompt, model, browser, max_input_tokens):
-    """Browse content using the agent"""
-    agent = Agent(
-        task=prompt,
-        llm=model,
-        browser=browser,
-        max_input_tokens=max_input_tokens,
-    )
-
-    logging.info(f"Using agent: {agent.model_name}")
-
-    result = await agent.run()
-    return result
 
 
 def check_captcha(page: Page):

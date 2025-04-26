@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-browser"
+version = "0.0.1"
+authors = [
+  { name="John Mwangi", email="john.mwangi@live.com" },
+]
+description = "Uses an LLM to autonomously browse the Internet."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Repository = "https://github.com/john-mwangi/llm-browser"
+Issues = "https://github.com/john-mwangi/llm-browser/issues"
+# Homepage = ""
+# Documentation = ""
+# Changelog = ""
+
+# ref: https://setuptools.pypa.io/en/latest/userguide/package_discovery.html
+[tool.setuptools.packages.find]
+include = ["llm_browser"]   # include all subpackages with __init__.py
+exclude = ["tests"]
+
+# ref: https://setuptools.pypa.io/en/latest/userguide/datafiles.html
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json"]
