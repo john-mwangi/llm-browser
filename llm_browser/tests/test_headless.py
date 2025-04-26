@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 from playwright_stealth import stealth_sync
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append("../")
 from src.utils import ROOT_DIR, download_content_google, get_mongodb_client
 
 load_dotenv()
@@ -27,7 +27,9 @@ def test_stealth(url: str):
 def test_download_content():
     url = os.environ.get("GOOGLE_SEARCH_URL")
     headless = os.environ.get("HEADLESS")
-    data = download_content_google(prompt_context={"url": url}, headless=headless)
+    data = download_content_google(
+        prompt_context={"url": url}, headless=headless
+    )
 
 
 def test_google_search():

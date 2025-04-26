@@ -4,3 +4,4 @@ drafts
 results
 *.gif
 __pycache__
+*.egg-info
