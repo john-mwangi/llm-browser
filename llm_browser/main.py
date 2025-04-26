@@ -1,16 +1,21 @@
 """Uses an LLM model to autonomously browse the Internet"""
 
 import asyncio
-import json
 import logging
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from browser_use import Browser, BrowserConfig
 from dotenv import load_dotenv
-from src import utils
-from src.utils import TaskType, models, set_logging
+
+from llm_browser.src.browser.core import browse_content
+from llm_browser.src.browser.scrapers import download_content_google
+from llm_browser.src.database import get_mongodb_client
+from llm_browser.src.llm.models import models
+from llm_browser.src.llm.query import query_llm
+from llm_browser.src.reporting import post_response
+from llm_browser.src.tasks import TaskType
+from llm_browser.src.utils import set_logging
 
 load_dotenv(override=True)
 
@@ -20,15 +25,13 @@ logger = logging.getLogger(__name__)
 tz = os.environ.get("TZ")
 text_model = os.environ.get("TEXT_MODEL")
 vision_model = os.environ.get("VISION_MODEL")
-max_input_tokens = int(os.environ.get("MAX_INPUT_TOKENS", 120000))
-headless = bool(int(os.environ.get("HEADLESS"), 0))
-browser = Browser(config=BrowserConfig(headless=headless))
 ts = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d_%H%M%S")
 webhook = os.environ.get("DISCORD_WEBHOOK")
+db_name = os.environ.get("_MONGO_DB")
 
 
 def main():
-    client, db_name = utils.get_mongodb_client()
+    client = get_mongodb_client()
 
     with client:
         db = client[db_name]
@@ -47,9 +50,13 @@ def main():
                 raise ValueError(f"unknown task: {task}")
 
             title = doc["title"]
-            resume_content = resumes.find_one({"type": "data engineer"})["resume"]
+            resume_content = resumes.find_one({"type": "data engineer"})[
+                "resume"
+            ]
             resume = {"resume": resume_content}
-            resume_prompt = prompts.find_one({"type": "google_augmented"})["prompt"]
+            resume_prompt = prompts.find_one({"type": "google_augmented"})[
+                "prompt"
+            ]
 
             if task == TaskType.BROWSE:
                 main_prompt = prompts.find_one({"type": "browse"})["prompt"]
@@ -57,23 +64,21 @@ def main():
                 browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
 
                 result = asyncio.run(
-                    utils.browse_content(
+                    browse_content(
                         prompt=browsing_prompt,
                         model=models.get(vision_model),
-                        browser=browser,
-                        max_input_tokens=max_input_tokens,
                     )
                 )
 
                 augmented_data = {**result, **resume}
 
-                response = utils.query_llm(
+                response = query_llm(
                     data=augmented_data,
                     prompt=resume_prompt,
                     model=models.get(text_model),
                 )
 
-                utils.post_response(response=response, webhook=webhook, title=title)
+                post_response(response=response, webhook=webhook, title=title)
 
             if task == TaskType.SCRAPE:
                 # prompt = prompts.find_one({"type": "google"}, collation={"strength": 2, "locale": "en"})
@@ -81,15 +86,14 @@ def main():
                 #     {"type": {"$regex": "^google$", "$options": "i"}}
                 # )["prompt"]
 
-                data = utils.download_content_google(
-                    prompt_context=dict(doc), headless=headless
-                )
-                response = utils.query_llm(
+                data = download_content_google(prompt_context=dict(doc))
+
+                response = query_llm(
                     data={**data, **resume},
                     prompt=resume_prompt,
                     model=models.get(text_model),
                 )
-                utils.post_response(response=response, webhook=webhook, title=title)
+                post_response(response=response, webhook=webhook, title=title)
 
 
 if "__name__" == "__name__":

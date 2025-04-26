@@ -5,11 +5,14 @@ import os
 
 import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from playwright.sync_api import Page, sync_playwright
 
-from llm_browser.src.configs.config import browser_args, results_dir
+from llm_browser.src.browser.core import setup_playwright_browser
+from llm_browser.src.configs.config import results_dir
 from llm_browser.src.utils import set_logging
 
+load_dotenv()
 set_logging()
 logger = logging.getLogger(__name__)
 
@@ -32,7 +35,7 @@ def check_captcha(page: Page):
     return has_captcha
 
 
-def download_content_google(prompt_context: dict, headless: bool):
+def download_content_google(prompt_context: dict):
     """Download and process content from a URL
 
     Args
@@ -42,57 +45,46 @@ def download_content_google(prompt_context: dict, headless: bool):
     """
     url = prompt_context["url"]
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless, args=browser_args)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36",
-            locale="en-US",
-            permissions=["notifications"],
-        )
-        # page = context.new_page()
-        page = browser.new_page()
-        page.goto(url)
+    browser, playwright = setup_playwright_browser()
+    page = browser.new_page()
+    page.goto(url)
 
-        # check for captcha challenge
-        has_captcha = check_captcha(page)
-        if has_captcha:
-            page.pause()
+    # check for captcha challenge
+    has_captcha = check_captcha(page)
+    if has_captcha:
+        page.pause()
 
-        page.is_visible()
+    page.wait_for_selector("body")
 
-        page.wait_for_selector("body")
+    links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
+    entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
+    entities = [e.text_content().strip() for e in entities]
 
-        links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
-        entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
-        entities = [e.text_content().strip() for e in entities]
+    if len(links) == 0:
+        logger.warning("there was an issue extracting links")
 
-        if len(links) == 0:
-            logger.warning("there was an issue extracting links")
+    data = {}
 
-        data = {}
+    for link, entity in zip(links, entities):
+        link.click()
 
-        for link, entity in zip(links, entities):
-            link.click()
+        try:
+            page.get_by_role(
+                role="button", name="Show full description"
+            ).click(timeout=5000)
+            page.wait_for_load_state("domcontentloaded")
+            content = page.query_selector("div.NgUYpe").text_content()
+            data[link.text_content()] = f"Entity: {entity}\n\n" + content
 
-            try:
-                page.get_by_role(
-                    role="button", name="Show full description"
-                ).click(timeout=5000)
-                page.wait_for_load_state("domcontentloaded")
-                content = page.query_selector("div.NgUYpe").text_content()
-                data[link.text_content()] = f"Entity: {entity}\n\n" + content
+        except Exception as e:
+            logger.exception(f"error on '{link.text_content()}': {e}")
+            data[link.text_content()] = f"Entity: {entity}\n\n"
 
-            except Exception as e:
-                logger.exception(f"error on '{link.text_content()}': {e}")
-                data[link.text_content()] = f"Entity: {entity}\n\n"
+        logger.info(f"successfully retrieved '{link.text_content()}' content")
 
-            logger.info(
-                f"successfully retrieved '{link.text_content()}' content"
-            )
-
-        context.close()
-        browser.close()
-        return data
+    browser.close()
+    playwright.stop()
+    return data
 
 
 def query_google(data: dict, prompt: str, model):
