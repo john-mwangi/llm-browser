@@ -1,4 +1,4 @@
-"""Utility functions for the LLM browser application"""
+"""Truly generic helper functions"""
 
 import json
 import logging
@@ -74,7 +74,9 @@ class TaskType(Enum):
 def set_logging():
     """Configure logging for the application"""
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        force=True,
     )
 
 
@@ -123,7 +125,9 @@ def check_captcha(page: Page):
         'iframe[src*="hcaptcha"]',
     ]
 
-    has_captcha = any([page.is_visible(selector) for selector in captcha_selectors])
+    has_captcha = any(
+        [page.is_visible(selector) for selector in captcha_selectors]
+    )
     return has_captcha
 
 
@@ -170,9 +174,9 @@ def download_content_google(prompt_context: dict, headless: bool):
             link.click()
 
             try:
-                page.get_by_role(role="button", name="Show full description").click(
-                    timeout=5000
-                )
+                page.get_by_role(
+                    role="button", name="Show full description"
+                ).click(timeout=5000)
                 page.wait_for_load_state("domcontentloaded")
                 content = page.query_selector("div.NgUYpe").text_content()
                 data[link.text_content()] = f"Entity: {entity}\n\n" + content
@@ -181,7 +185,9 @@ def download_content_google(prompt_context: dict, headless: bool):
                 logging.exception(f"error on '{link.text_content()}': {e}")
                 data[link.text_content()] = f"Entity: {entity}\n\n"
 
-            logging.info(f"successfully retrieved '{link.text_content()}' content")
+            logging.info(
+                f"successfully retrieved '{link.text_content()}' content"
+            )
 
         context.close()
         browser.close()
@@ -288,7 +294,9 @@ def post_response(response: Response | str, webhook: str, title: str):
     heading = f"# Postings for: **{title.title()}**\n\n"
 
     if isinstance(response, Response):
-        result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        result = response.json()["candidates"][0]["content"]["parts"][0][
+            "text"
+        ]
         r2 = format_content(result)
         post = heading + r2
 
