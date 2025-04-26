@@ -3,6 +3,7 @@
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent.parent
+results_dir = ROOT_DIR / "results"
 
 browser_args = [
     "--window-size=1300,570",
