@@ -1,40 +1,44 @@
 # LLM Browser
 ## About
-Browses the Internet autonomously using an LLM model. Reads the prompt from a text file and saves the result in a markdown file at the root.
+The LLM Browser is a Python project that uses Large Language Models (LLMs) to 
+autonomously browse the internet. It leverages tools like Playwright for 
+browser automation and LangChain for LLM integration to perform tasks such as 
+web scraping and content summarization
 
 ## Features
-1. Allows you to save a list of frequently used prompts.
-2. Works with Ollama to bypass commmercial API rate limits.
-3. Sends an alert of the results or alternatively, saves them locally.
+1. **Autonomous Web Browsing:** Uses an LLM agent to interact with web pages.
+1. **Web Scraping:** Extracts specific data from web pages, including handling dynamic content and CAPTCHAs.
+1. **LLM Querying:** Integrates with various LLMs (OpenAI, Anthropic, Google Gemini, Ollama) to process scraped data and generate responses.
+1. **Task Management:** Defines and executes tasks such as browsing and scraping based on configurations.
+1. **Data Handling:** Uses MongoDB to store prompts, context, and results.
+1. **Reporting:** Posts LLM-generated responses to platforms like Discord using webhooks.
+1. **Transcript Extraction:** Extracts transcripts from Fireflies.ai meeting URLs.
 
-## Usage
-1. Create a python v3.11 virtual environment and install the requirements.
+## Setup and Installation
+1. Clone this repository.
+2. Prerequisites:
+    - Python 3.11
+    - MongoDB
+3. Create a Python virtual environment and activate it:
+```bash
+python -m venv venv
+source venv/bin/activate # Unix/Linux
+venv\Scripts\activate # Windows
 ```
+4. Install the required packages:
+```bash
 pip install -r requirements.txt
 ```
-2. Add a `prompt.txt` file at the root with the prompt you want the model to generate content for.
-3. Create a `.env` file at the root with in the following format:
-```
-GOOGLE_API_KEY=XXX
-TZ=Africa/Nairobi
-MODEL=gemini
-MAX_INPUT_TOKENS=120000
-HEADLESS=1
-```
-4. Run `main.py`
+5. Configuration:
+    - Create a `.env` file in the root directory and set the required environment variables (see `.env.example`).
+    - Set up MongoDB and create a database named `llm_browser`.
+    - Create collections for `prompts`, `context`, and `results` in the `llm_browser` database.
+6. Run `main.py` to start the application.
 
 ## Demo
 In the video below, the model was tasked with adding grocery items to cart, and checking out.
 
 [![AI Did My Groceries](https://github.com/user-attachments/assets/d9359085-bde6-41d4-aa4e-6520d0221872)](https://www.youtube.com/watch?v=L2Ya9PYNns8)
-
-## Docker
-This will build and run the Airflow container.
-```bash
-docker compose up
-docker build -t airflow . [--progress=plain]
-docker run -p 8085:8080 --name airflow airflow
-```
 
 ## Adding a Prompt
 Use mongo-express to add a prompt. 
@@ -45,11 +49,11 @@ Alternative, you can use the terminal.
 use llm_browser
 
 db.prompts.insertOne( { 
-task: "scrape", 
-title: "Prompt Title",
-url: "url_to_scrape",
-prompt: "This is the prompt and return to me the results as a \
-markdown:\n\n \
-result format: # <title> \n <entity> \n <summary>"
+    task: "scrape", 
+    title: "Prompt Title",
+    url: "url_to_scrape",
+    prompt: "This is the prompt and return to me the results as a \
+    markdown:\n\n \
+    result format: # <title> \n <entity> \n <summary>"
 } )
 ```
