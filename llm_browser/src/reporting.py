@@ -1,5 +1,6 @@
 """Functions for sending results, formating content, etc"""
 
+import logging
 import re
 
 import requests
@@ -7,7 +8,8 @@ from requests import Response
 
 from llm_browser.src.utils import chunk_string, set_logging
 
-logger = set_logging()
+set_logging()
+logger = logging.getLogger(__name__)
 
 
 def format_content(content: str) -> str:

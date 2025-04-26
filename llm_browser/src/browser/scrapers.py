@@ -1,5 +1,6 @@
 """Specific scraping logic"""
 
+import logging
 import os
 
 import requests
@@ -9,7 +10,8 @@ from playwright.sync_api import Page, sync_playwright
 from llm_browser.src.configs.config import browser_args, results_dir
 from llm_browser.src.utils import set_logging
 
-logger = set_logging()
+set_logging()
+logger = logging.getLogger(__name__)
 
 
 def check_captcha(page: Page):
