@@ -170,7 +170,8 @@ def extract_transcript(url: str):
         message = message_div.text.strip() if message_div else ""
 
         # Format the line
-        markdown_line = f"{name} - {timestamp}\n{message}\n"
+        markdown_line = f"{name} - {timestamp}\n{message}\n\n"
+
         markdown_output.append(markdown_line)
 
     with open(file_path, "w") as f:
