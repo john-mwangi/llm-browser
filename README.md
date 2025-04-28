@@ -22,8 +22,8 @@ web scraping and content summarization
 3. Create a Python virtual environment and activate it:
 ```bash
 python -m venv venv
-source venv/bin/activate # Unix/Linux
-venv\Scripts\activate # Windows
+source venv/bin/activate    # Unix/Linux
+venv\Scripts\activate       # Windows
 ```
 4. Install the required packages:
 ```bash
