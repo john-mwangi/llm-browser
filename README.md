@@ -5,6 +5,9 @@ autonomously browse the internet. It leverages tools like Playwright for
 browser automation and LangChain for LLM integration to perform tasks such as 
 web scraping and content summarization
 
+> [!WARNING]
+> I use this for personal tasks - things might break! 
+
 ## Features
 1. **Autonomous Web Browsing:** Uses an LLM agent to interact with web pages.
 1. **Web Scraping:** Extracts specific data from web pages, including handling dynamic content and CAPTCHAs.
