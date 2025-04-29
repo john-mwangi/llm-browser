@@ -36,7 +36,7 @@ async def browse_content(
     return result
 
 
-def setup_playwright_browser(headless: bool = False):
+def setup_browser_instance(headless: bool = False):
     """Create a browser instance"""
 
     p = sync_playwright().start()
