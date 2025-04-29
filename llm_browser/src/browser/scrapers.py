@@ -2,13 +2,14 @@
 
 import logging
 import os
+import time
 
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from playwright.sync_api import Page, sync_playwright
 
-from llm_browser.src.browser.core import setup_playwright_browser
+from llm_browser.src.browser.core import setup_browser_instance
 from llm_browser.src.configs.config import results_dir
 from llm_browser.src.utils import set_logging
 
@@ -45,7 +46,7 @@ def download_content_google(prompt_context: dict):
     """
     url = prompt_context["url"]
 
-    browser, playwright = setup_playwright_browser()
+    browser, playwright = setup_browser_instance()
     page = browser.new_page()
     page.goto(url)
 
@@ -176,3 +177,85 @@ def extract_transcript(url: str):
 
     with open(file_path, "w") as f:
         f.writelines(markdown_output)
+
+
+def download_content_linkedin(url: str):
+    """Scrape LinkedIn content"""
+
+    browser, p = setup_browser_instance()
+    page = browser.new_page()
+    page.goto(url)
+    page.get_by_role("button", name="Dismiss").click()
+    page.wait_for_selector("ul.jobs-search__results-list")
+
+    # scroll to load all jobs
+    max_scrolls = 20
+
+    for _ in range(max_scrolls):
+        page.mouse.wheel(0, 10000)
+        time.sleep(2)
+
+        end_marker = page.locator(
+            'div.see-more-jobs__viewed-all:has-text("You\'ve viewed all jobs for this search")'
+        )
+
+        if end_marker.is_visible():
+            logger.info("Reached end of job listings.")
+            break
+
+    # loaded jobs
+    cards = page.locator("ul.jobs-search__results-list li")
+    count = cards.count()
+    logger.info(f"Total jobs collected: {count}")
+
+    results = []
+
+    for i in range(count):
+        card = cards.nth(i)
+        card.click()
+
+        try:
+            page.get_by_role("button", name="Apply").wait_for(timeout=10000)
+            show_more = page.locator('button:has-text("Show more")')
+            if show_more.is_visible():
+                show_more.click()
+                # page.wait_for_timeout(1000)
+
+            desc_element = page.locator("div.description__text")
+            desc_html = desc_element.inner_html()
+            desc_soup = BeautifulSoup(desc_html, "html.parser")
+            job_description = desc_soup.get_text(strip=True)
+
+        except Exception as e:
+            job_description = ""
+
+        # extract details
+        title = (
+            card.locator("h3.base-search-card__title").text_content().strip()
+        )
+        company = (
+            card.locator("h4.base-search-card__subtitle")
+            .text_content()
+            .strip()
+        )
+        location = (
+            card.locator("span.job-search-card__location")
+            .text_content()
+            .strip()
+        )
+        url = card.locator("a.base-card__full-link").get_attribute("href")
+
+        results.append(
+            {
+                "title": title,
+                "company": company,
+                "location": location,
+                "url": url,
+                "description": job_description,
+            }
+        )
+
+    page.close()
+    p.stop()
+
+    return results
