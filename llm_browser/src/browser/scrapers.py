@@ -14,6 +14,7 @@ from llm_browser.src.configs.config import results_dir
 from llm_browser.src.utils import set_logging
 
 load_dotenv()
+
 set_logging()
 logger = logging.getLogger(__name__)
 
@@ -223,10 +224,9 @@ def download_content_linkedin(url: str):
                 show_more.click()
                 # page.wait_for_timeout(1000)
 
-            desc_element = page.locator("div.description__text")
-            desc_html = desc_element.inner_html()
-            desc_soup = BeautifulSoup(desc_html, "html.parser")
-            job_description = desc_soup.get_text(strip=True)
+            job_description = (
+                page.locator("div.description__text").text_content().strip()
+            )
 
         except Exception as e:
             job_description = ""
