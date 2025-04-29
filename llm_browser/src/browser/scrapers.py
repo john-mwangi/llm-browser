@@ -142,7 +142,7 @@ def extract_transcript(url: str):
 
     meeting_name = url.split("::")[0].split("/")[-1]
     file_name = f"{meeting_name}.txt"
-    file_path = os.path.join(results_dir, file_name)
+    file_path = results_dir / file_name
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -177,6 +177,8 @@ def extract_transcript(url: str):
 
     with open(file_path, "w") as f:
         f.writelines(markdown_output)
+
+    logger.info(f"transcript saved to {file_path.resolve()}")
 
 
 def download_content_linkedin(url: str):
