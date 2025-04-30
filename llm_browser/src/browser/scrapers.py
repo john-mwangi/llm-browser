@@ -187,7 +187,14 @@ def download_content_linkedin(url: str):
 
     browser, p = setup_browser_instance()
     page = browser.new_page()
-    page.goto(url)
+    page.goto(url, wait_until="domcontentloaded")
+
+    # handle page redirects
+    if page.url != url:
+        browser.close()
+        p.stop()
+        browser, p = setup_browser_instance()
+
     page.get_by_role("button", name="Dismiss").click()
     page.wait_for_selector("ul.jobs-search__results-list")
 
