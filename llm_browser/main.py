@@ -9,7 +9,10 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 from llm_browser.src.browser.core import browse_content
-from llm_browser.src.browser.scrapers import download_content_google
+from llm_browser.src.browser.scrapers import (
+    download_content_google,
+    download_content_linkedin,
+)
 from llm_browser.src.database import get_mongodb_client
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import query_llm
@@ -53,7 +56,7 @@ def main():
             resume_content = resumes.find_one({"type": "data engineer"})[
                 "resume"
             ]
-            resume = {"resume": resume_content}
+            resume_dict = {"resume": resume_content}
             resume_prompt = prompts.find_one({"type": "google_augmented"})[
                 "prompt"
             ]
@@ -70,7 +73,7 @@ def main():
                     )
                 )
 
-                augmented_data = {**result, **resume}
+                augmented_data = {**result, **resume_dict}
 
                 response = query_llm(
                     data=augmented_data,
@@ -86,10 +89,22 @@ def main():
                 #     {"type": {"$regex": "^google$", "$options": "i"}}
                 # )["prompt"]
 
-                data = download_content_google(prompt_context=dict(doc))
+                url = doc["url"]
+
+                if url.startswith("https://www.google"):
+                    data = download_content_google(url)
+
+                if url.startswith("https://www.linkedin"):
+                    try:
+                        data = download_content_linkedin(url)
+                    except Exception as e:
+                        logger.exception(e)
+                        continue
+
+                data = {"data": data} if not isinstance(data, dict) else data
 
                 response = query_llm(
-                    data={**data, **resume},
+                    data={**data, **resume_dict},
                     prompt=resume_prompt,
                     model=models.get(text_model),
                 )

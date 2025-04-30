@@ -1,10 +1,12 @@
 """Functions for querying LLMs"""
 
 import json
+import logging
 
 from llm_browser.src.utils import set_logging
 
-logger = set_logging()
+set_logging()
+logger = logging.getLogger(__name__)
 
 
 def query_llm(data: dict, prompt: str, model) -> str:

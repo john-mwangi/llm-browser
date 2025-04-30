@@ -8,12 +8,14 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from playwright.sync_api import Page, sync_playwright
+from tqdm import tqdm
 
 from llm_browser.src.browser.core import setup_browser_instance
 from llm_browser.src.configs.config import results_dir
 from llm_browser.src.utils import set_logging
 
 load_dotenv()
+
 set_logging()
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ def check_captcha(page: Page):
     return has_captcha
 
 
-def download_content_google(prompt_context: dict):
+def download_content_google(url: str):
     """Download and process content from a URL
 
     Args
@@ -44,7 +46,6 @@ def download_content_google(prompt_context: dict):
     prompt_content: a record containing the url, title, query, etc.
     headless: boolean indicating whether to use a headless browser
     """
-    url = prompt_context["url"]
 
     browser, playwright = setup_browser_instance()
     page = browser.new_page()
@@ -75,11 +76,11 @@ def download_content_google(prompt_context: dict):
             ).click(timeout=5000)
             page.wait_for_load_state("domcontentloaded")
             content = page.query_selector("div.NgUYpe").text_content()
-            data[link.text_content()] = f"Entity: {entity}\n\n" + content
+            data[link.text_content()] = f"Company: {entity}\n\n" + content
 
         except Exception as e:
             logger.exception(f"error on '{link.text_content()}': {e}")
-            data[link.text_content()] = f"Entity: {entity}\n\n"
+            data[link.text_content()] = f"Company: {entity}\n\n"
 
         logger.info(f"successfully retrieved '{link.text_content()}' content")
 
@@ -197,6 +198,11 @@ def download_content_linkedin(url: str):
         page.mouse.wheel(0, 10000)
         time.sleep(2)
 
+        see_more = page.get_by_role("button", name="See more jobs")
+        if see_more.is_visible():
+            see_more.click()
+            time.sleep(2)
+
         end_marker = page.locator(
             'div.see-more-jobs__viewed-all:has-text("You\'ve viewed all jobs for this search")'
         )
@@ -212,7 +218,7 @@ def download_content_linkedin(url: str):
 
     results = []
 
-    for i in range(count):
+    for i in tqdm(range(count)):
         card = cards.nth(i)
         card.click()
 
@@ -245,14 +251,13 @@ def download_content_linkedin(url: str):
             .text_content()
             .strip()
         )
-        url = card.locator("a.base-card__full-link").get_attribute("href")
+        # url = card.locator("a.base-card__full-link").get_attribute("href")
 
         results.append(
             {
                 "title": title,
                 "company": company,
                 "location": location,
-                "url": url,
                 "description": job_description,
             }
         )
