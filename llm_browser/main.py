@@ -17,7 +17,7 @@ from llm_browser.src.database import get_mongodb_client
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import query_llm
 from llm_browser.src.tasks import TaskType
-from llm_browser.src.utils import set_logging
+from llm_browser.src.utils import set_logging, string_to_dict
 
 load_dotenv(override=True)
 
@@ -65,14 +65,23 @@ def main():
                 url = doc["url"]
                 browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
 
-                result = asyncio.run(
+                agent_history = asyncio.run(
                     browse_content(
                         prompt=browsing_prompt,
                         model=models.get(vision_model),
                     )
                 )
 
-                augmented_data = {**result, **resume_dict}
+                final_result = agent_history.final_result()
+                penultimate_result = agent_history.action_results()[
+                    -2
+                ].model_dump_json()
+
+                result_dict = string_to_dict(
+                    texts=[final_result, penultimate_result]
+                )
+
+                augmented_data = {**result_dict, **resume_dict}
 
                 logger.info("posting to channel...")
                 query_llm(
@@ -91,16 +100,20 @@ def main():
                 url = doc["url"]
 
                 if url.startswith("https://www.google"):
-                    data = download_content_google(url)
+                    try:
+                        data = download_content_google(url)
+                    except Exception as e:
+                        logger.exception(f"error with {url}: {e}")
+                        continue
 
                 if url.startswith("https://www.linkedin"):
                     try:
                         data = download_content_linkedin(url)
                     except Exception as e:
-                        logger.exception(e)
+                        logger.exception(f"error with {url}: {e}")
                         continue
 
-                data = {"data": data} if not isinstance(data, dict) else data
+                data = {"roles": data} if not isinstance(data, dict) else data
 
                 logger.info("posting to channel...")
                 query_llm(

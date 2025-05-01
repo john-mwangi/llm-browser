@@ -1,6 +1,7 @@
 """Truly generic helper functions"""
 
 import functools
+import json
 import logging
 import os
 import re
@@ -79,3 +80,15 @@ def post_notification(webhook: str = WEB_HOOK):
         return wrapper
 
     return decorator
+
+
+def string_to_dict(texts: list[str]):
+    for text in texts:
+        try:
+            text = text.split("```json")[1].split("```")[0].strip()
+            fixed_json = re.sub(r"(\\n|\n)\s*|\\", "", text)
+            json_res: dict = json.loads(fixed_json)
+            return json_res
+        except Exception as e:
+            continue
+    raise ValueError("could not parse json")
