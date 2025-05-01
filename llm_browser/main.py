@@ -15,7 +15,7 @@ from llm_browser.src.browser.scrapers import (
 )
 from llm_browser.src.database import get_mongodb_client
 from llm_browser.src.llm.models import models
-from llm_browser.src.llm.query import query_llm
+from llm_browser.src.llm.query import filter_roles, query_llm
 from llm_browser.src.tasks import TaskType
 from llm_browser.src.utils import set_logging, string_to_dict
 
@@ -45,6 +45,13 @@ def main():
         logger.info(f"retrieved {counts_} tasks")
         docs = context.find()
 
+        resume_content = resumes.find_one({"type": "data engineer"})["resume"]
+        resume_dict = {"resume": resume_content}
+        resume_prompt = prompts.find_one({"type": "google_augmented"})[
+            "prompt"
+        ]
+        filter_prompt = prompts.find_one({"type": "filter_roles"})["prompt"]
+
         for doc in docs:
             try:
                 task = TaskType(doc["task"])
@@ -52,13 +59,6 @@ def main():
                 raise ValueError(f"unknown task: {task}")
 
             title = doc["title"]
-            resume_content = resumes.find_one({"type": "data engineer"})[
-                "resume"
-            ]
-            resume_dict = {"resume": resume_content}
-            resume_prompt = prompts.find_one({"type": "google_augmented"})[
-                "prompt"
-            ]
 
             if task == TaskType.BROWSE:
                 main_prompt = prompts.find_one({"type": "browse"})["prompt"]
@@ -83,10 +83,17 @@ def main():
 
                 augmented_data = {**result_dict, **resume_dict}
 
-                logger.info("posting to channel...")
-                query_llm(
+                response = query_llm(
                     data=augmented_data,
                     prompt=resume_prompt,
+                    model=models.get(text_model),
+                    title=title,
+                )
+
+                logger.info("posting to channel...")
+                filter_roles(
+                    data=response,
+                    prompt=filter_prompt,
                     model=models.get(text_model),
                     title=title,
                 )
@@ -97,7 +104,7 @@ def main():
                 #     {"type": {"$regex": "^google$", "$options": "i"}}
                 # )["prompt"]
 
-                url = doc["url"]
+                url: str = doc["url"]
 
                 if url.startswith("https://www.google"):
                     try:
@@ -115,10 +122,16 @@ def main():
 
                 data = {"roles": data} if not isinstance(data, dict) else data
 
-                logger.info("posting to channel...")
-                query_llm(
+                response = query_llm(
                     data={**data, **resume_dict},
                     prompt=resume_prompt,
+                    model=models.get(text_model),
+                )
+
+                logger.info("posting to channel...")
+                filter_roles(
+                    data=response,
+                    prompt=filter_prompt,
                     model=models.get(text_model),
                     title=title,
                 )

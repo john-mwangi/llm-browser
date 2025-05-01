@@ -1,9 +1,13 @@
 """MongoDB client setup, functions to interact with collections"""
 
 import os
+from pathlib import Path
 from urllib.parse import quote_plus
 
+from dotenv import load_dotenv
 from pymongo import MongoClient
+
+load_dotenv()
 
 
 def get_mongodb_client():
@@ -22,3 +26,52 @@ def get_mongodb_client():
     uri = f"mongodb://{_USER}:{_PASSWORD}@{_HOST}:{_PORT}/"
 
     return MongoClient(uri)
+
+
+def file_to_db(fp: Path | str, key: str, collection, data: dict):
+    """Inserts a document from a file into the database. The content of your
+    file will be added to `data`
+
+    Args
+    ---
+    - fp: the file path to the document or multiline string
+    - key: the key to associate the file contents with
+    - collection: the name of the collection to add this file to
+    - data: data content
+
+    Example
+    ---
+    This will upload as: `{"prompt": prompt, "type": "filter_roles"}`
+
+    ```
+    file_to_db(
+        fp=prompt,
+        key="prompt",
+        collection="prompts",
+        data={"type": "filter_roles"},
+    )
+    ```
+    """
+
+    db_name = os.environ.get("_MONGO_DB")
+    client = get_mongodb_client()
+
+    with client:
+        db = client[db_name]
+        coll = db[collection]
+
+        if isinstance(fp, Path):
+            with open(fp) as f:
+                value = f.read()
+                content = {key: value}
+
+        elif isinstance(fp, str):
+            content = {key: fp}
+
+        else:
+            raise ValueError("unsupported fp!")
+
+        document = {**data, **content}
+        coll.insert_one(document)
+
+    print(f"\nUploaded successfully to {collection=}")

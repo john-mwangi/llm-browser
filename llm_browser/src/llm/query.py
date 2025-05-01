@@ -9,8 +9,7 @@ set_logging()
 logger = logging.getLogger(__name__)
 
 
-@post_notification()
-def query_llm(data: dict, prompt: str, model, title: str) -> str:
+def query_llm(data: dict, prompt: str, model) -> str:
     """Queries an LLM model
 
     Args
@@ -24,6 +23,26 @@ def query_llm(data: dict, prompt: str, model, title: str) -> str:
     The LLM response
     """
     logger.info("querying llm...")
+    messages = [("system", prompt), ("human", json.dumps(data))]
+    msg = model.invoke(messages)
+    return msg.content
+
+
+@post_notification()
+def filter_roles(data: str, prompt: str, model, title: str) -> str:
+    """Queries an LLM model
+
+    Args
+    ---
+    - data: results of the scraping process
+    - prompt: the prompt to use
+    - model: the LangChain model
+
+    Returns
+    ---
+    The LLM response
+    """
+    logger.info("filtering jobs...")
     messages = [("system", prompt), ("human", json.dumps(data))]
     msg = model.invoke(messages)
     return msg.content, title
