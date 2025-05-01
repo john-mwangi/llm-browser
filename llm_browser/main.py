@@ -16,7 +16,6 @@ from llm_browser.src.browser.scrapers import (
 from llm_browser.src.database import get_mongodb_client
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import query_llm
-from llm_browser.src.reporting import post_response
 from llm_browser.src.tasks import TaskType
 from llm_browser.src.utils import set_logging
 
@@ -75,13 +74,13 @@ def main():
 
                 augmented_data = {**result, **resume_dict}
 
-                response = query_llm(
+                logger.info("posting to channel...")
+                query_llm(
                     data=augmented_data,
                     prompt=resume_prompt,
                     model=models.get(text_model),
+                    title=title,
                 )
-
-                post_response(response=response, webhook=webhook, title=title)
 
             if task == TaskType.SCRAPE:
                 # prompt = prompts.find_one({"type": "google"}, collation={"strength": 2, "locale": "en"})
@@ -103,12 +102,13 @@ def main():
 
                 data = {"data": data} if not isinstance(data, dict) else data
 
-                response = query_llm(
+                logger.info("posting to channel...")
+                query_llm(
                     data={**data, **resume_dict},
                     prompt=resume_prompt,
                     model=models.get(text_model),
+                    title=title,
                 )
-                post_response(response=response, webhook=webhook, title=title)
 
 
 if "__name__" == "__name__":
