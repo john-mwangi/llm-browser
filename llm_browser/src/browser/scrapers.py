@@ -194,6 +194,8 @@ def download_content_linkedin(url: str):
         browser.close()
         p.stop()
         browser, p = setup_browser_instance()
+        page = browser.new_page()
+        page.goto(url, wait_until="domcontentloaded")
 
     page.get_by_role("button", name="Dismiss").click()
     page.wait_for_selector("ul.jobs-search__results-list")
