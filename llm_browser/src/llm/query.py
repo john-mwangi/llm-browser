@@ -1,13 +1,16 @@
 """Functions for querying LLMs"""
 
 import json
+import logging
 
-from llm_browser.src.utils import set_logging
+from llm_browser.src.utils import post_notification, set_logging
 
-logger = set_logging()
+set_logging()
+logger = logging.getLogger(__name__)
 
 
-def query_llm(data: dict, prompt: str, model) -> str:
+@post_notification()
+def query_llm(data: dict, prompt: str, model, title: str) -> str:
     """Queries an LLM model
 
     Args
@@ -23,4 +26,4 @@ def query_llm(data: dict, prompt: str, model) -> str:
     logger.info("querying llm...")
     messages = [("system", prompt), ("human", json.dumps(data))]
     msg = model.invoke(messages)
-    return msg.content
+    return msg.content, title

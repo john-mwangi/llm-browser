@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from playwright.sync_api import Page, sync_playwright
+from tqdm import tqdm
 
 from llm_browser.src.browser.core import setup_browser_instance
 from llm_browser.src.configs.config import results_dir
@@ -37,7 +38,7 @@ def check_captcha(page: Page):
     return has_captcha
 
 
-def download_content_google(prompt_context: dict):
+def download_content_google(url: str, headless: bool = False):
     """Download and process content from a URL
 
     Args
@@ -45,47 +46,47 @@ def download_content_google(prompt_context: dict):
     prompt_content: a record containing the url, title, query, etc.
     headless: boolean indicating whether to use a headless browser
     """
-    url = prompt_context["url"]
 
-    browser, playwright = setup_browser_instance()
-    page = browser.new_page()
-    page.goto(url)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=headless)
+        page = browser.new_page()
+        page.goto(url)
 
-    # check for captcha challenge
-    has_captcha = check_captcha(page)
-    if has_captcha:
-        page.pause()
+        # check for captcha challenge
+        has_captcha = check_captcha(page)
+        if has_captcha:
+            page.pause()
 
-    page.wait_for_selector("body")
+        page.wait_for_selector("body")
 
-    links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
-    entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
-    entities = [e.text_content().strip() for e in entities]
+        links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
+        entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
+        entities = [e.text_content().strip() for e in entities]
 
-    if len(links) == 0:
-        logger.warning("there was an issue extracting links")
+        if len(links) == 0:
+            logger.warning("there was an issue extracting links")
 
-    data = {}
+        data = {}
 
-    for link, entity in zip(links, entities):
-        link.click()
+        for link, entity in zip(links, entities):
+            link.click()
 
-        try:
-            page.get_by_role(
-                role="button", name="Show full description"
-            ).click(timeout=5000)
-            page.wait_for_load_state("domcontentloaded")
-            content = page.query_selector("div.NgUYpe").text_content()
-            data[link.text_content()] = f"Entity: {entity}\n\n" + content
+            try:
+                page.get_by_role(
+                    role="button", name="Show full description"
+                ).click(timeout=5000)
+                page.wait_for_load_state("domcontentloaded")
+                content = page.query_selector("div.NgUYpe").text_content()
+                data[link.text_content()] = f"Company: {entity}\n\n" + content
 
-        except Exception as e:
-            logger.exception(f"error on '{link.text_content()}': {e}")
-            data[link.text_content()] = f"Entity: {entity}\n\n"
+            except Exception as e:
+                logger.exception(f"error on '{link.text_content()}': {e}")
+                data[link.text_content()] = f"Company: {entity}\n\n"
 
-        logger.info(f"successfully retrieved '{link.text_content()}' content")
+            logger.info(
+                f"successfully retrieved '{link.text_content()}' content"
+            )
 
-    browser.close()
-    playwright.stop()
     return data
 
 
@@ -182,12 +183,22 @@ def extract_transcript(url: str):
     logger.info(f"transcript saved to {file_path.resolve()}")
 
 
-def download_content_linkedin(url: str):
+def download_content_linkedin(url: str, headless: bool = False):
     """Scrape LinkedIn content"""
 
     browser, p = setup_browser_instance()
+    browser = p.chromium.launch(headless=headless)
     page = browser.new_page()
-    page.goto(url)
+    page.goto(url, wait_until="domcontentloaded")
+
+    # handle page redirects
+    if page.url != url:
+        browser.close()
+        p.stop()
+        browser, p = setup_browser_instance()
+        page = browser.new_page()
+        page.goto(url, wait_until="domcontentloaded")
+
     page.get_by_role("button", name="Dismiss").click()
     page.wait_for_selector("ul.jobs-search__results-list")
 
@@ -197,6 +208,11 @@ def download_content_linkedin(url: str):
     for _ in range(max_scrolls):
         page.mouse.wheel(0, 10000)
         time.sleep(2)
+
+        see_more = page.get_by_role("button", name="See more jobs")
+        if see_more.is_visible():
+            see_more.click()
+            time.sleep(2)
 
         end_marker = page.locator(
             'div.see-more-jobs__viewed-all:has-text("You\'ve viewed all jobs for this search")'
@@ -213,7 +229,7 @@ def download_content_linkedin(url: str):
 
     results = []
 
-    for i in range(count):
+    for i in tqdm(range(count)):
         card = cards.nth(i)
         card.click()
 
@@ -245,19 +261,18 @@ def download_content_linkedin(url: str):
             .text_content()
             .strip()
         )
-        url = card.locator("a.base-card__full-link").get_attribute("href")
+        # url = card.locator("a.base-card__full-link").get_attribute("href")
 
         results.append(
             {
                 "title": title,
                 "company": company,
                 "location": location,
-                "url": url,
                 "description": job_description,
             }
         )
 
-    page.close()
+    browser.close()
     p.stop()
 
     return results

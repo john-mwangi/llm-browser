@@ -9,6 +9,6 @@ models = {
     "openai": ChatOpenAI(model="gpt-4o-mini"),
     "anthropic": ChatAnthropic(model_name="claude-3-5-sonnet-20241022"),
     "ollama": ChatOllama(model="llama3.2:latest"),
-    "gemini-vision": ChatGoogleGenerativeAI(model="gemini-2.0-pro-exp-02-05"),
-    "gemini-text": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
+    "gemini-vision": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
+    "gemini-text": ChatGoogleGenerativeAI(model="gemini-2.0-flash"),
 }

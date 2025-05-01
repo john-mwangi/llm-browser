@@ -9,13 +9,15 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 from llm_browser.src.browser.core import browse_content
-from llm_browser.src.browser.scrapers import download_content_google
+from llm_browser.src.browser.scrapers import (
+    download_content_google,
+    download_content_linkedin,
+)
 from llm_browser.src.database import get_mongodb_client
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import query_llm
-from llm_browser.src.reporting import post_response
 from llm_browser.src.tasks import TaskType
-from llm_browser.src.utils import set_logging
+from llm_browser.src.utils import set_logging, string_to_dict
 
 load_dotenv(override=True)
 
@@ -53,7 +55,7 @@ def main():
             resume_content = resumes.find_one({"type": "data engineer"})[
                 "resume"
             ]
-            resume = {"resume": resume_content}
+            resume_dict = {"resume": resume_content}
             resume_prompt = prompts.find_one({"type": "google_augmented"})[
                 "prompt"
             ]
@@ -63,22 +65,31 @@ def main():
                 url = doc["url"]
                 browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
 
-                result = asyncio.run(
+                agent_history = asyncio.run(
                     browse_content(
                         prompt=browsing_prompt,
                         model=models.get(vision_model),
                     )
                 )
 
-                augmented_data = {**result, **resume}
+                final_result = agent_history.final_result()
+                penultimate_result = agent_history.action_results()[
+                    -2
+                ].model_dump_json()
 
-                response = query_llm(
+                result_dict = string_to_dict(
+                    texts=[final_result, penultimate_result]
+                )
+
+                augmented_data = {**result_dict, **resume_dict}
+
+                logger.info("posting to channel...")
+                query_llm(
                     data=augmented_data,
                     prompt=resume_prompt,
                     model=models.get(text_model),
+                    title=title,
                 )
-
-                post_response(response=response, webhook=webhook, title=title)
 
             if task == TaskType.SCRAPE:
                 # prompt = prompts.find_one({"type": "google"}, collation={"strength": 2, "locale": "en"})
@@ -86,14 +97,31 @@ def main():
                 #     {"type": {"$regex": "^google$", "$options": "i"}}
                 # )["prompt"]
 
-                data = download_content_google(prompt_context=dict(doc))
+                url = doc["url"]
 
-                response = query_llm(
-                    data={**data, **resume},
+                if url.startswith("https://www.google"):
+                    try:
+                        data = download_content_google(url)
+                    except Exception as e:
+                        logger.exception(f"error with {url}: {e}")
+                        continue
+
+                if url.startswith("https://www.linkedin"):
+                    try:
+                        data = download_content_linkedin(url)
+                    except Exception as e:
+                        logger.exception(f"error with {url}: {e}")
+                        continue
+
+                data = {"roles": data} if not isinstance(data, dict) else data
+
+                logger.info("posting to channel...")
+                query_llm(
+                    data={**data, **resume_dict},
                     prompt=resume_prompt,
                     model=models.get(text_model),
+                    title=title,
                 )
-                post_response(response=response, webhook=webhook, title=title)
 
 
 if "__name__" == "__name__":
