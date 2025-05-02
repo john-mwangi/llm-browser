@@ -60,17 +60,17 @@ def save_to_db(fp: Path | str | None, key: str, collection: str, data: dict):
         db = client[db_name]
         coll = db[collection]
 
-        if fp is None:
+        if fp is None and data is not None:
             coll.insert_one(data)
             print(f"\nUploaded successfully to {collection=}")
             return
 
-        elif isinstance(fp, Path):
+        elif isinstance(fp, Path) and key is not None:
             with open(fp) as f:
                 value = f.read()
                 content = {key: value}
 
-        elif isinstance(fp, str):
+        elif isinstance(fp, str) and key is not None:
             content = {key: fp}
 
         else:
