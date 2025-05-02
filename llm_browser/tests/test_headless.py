@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 from playwright_stealth import stealth_sync
 
 sys.path.append("../")
-from src.utils import ROOT_DIR, download_content_google
+from src.utils import ROOT_DIR, fetch_google
 
 load_dotenv()
 
@@ -27,9 +27,7 @@ def test_stealth(url: str):
 def test_download_content():
     url = os.environ.get("GOOGLE_SEARCH_URL")
     headless = os.environ.get("HEADLESS")
-    data = download_content_google(
-        prompt_context={"url": url}, headless=headless
-    )
+    data = fetch_google(prompt_context={"url": url}, headless=headless)
 
 
 def test_google_search():

@@ -38,7 +38,7 @@ def check_captcha(page: Page):
     return has_captcha
 
 
-def download_content_google(url: str, headless: bool = False):
+def fetch_google(url: str, headless: bool = False):
     """Download and process content from a URL
 
     Args
@@ -183,7 +183,7 @@ def extract_transcript(url: str):
     logger.info(f"transcript saved to {file_path.resolve()}")
 
 
-def download_content_linkedin(url: str, headless: bool = False):
+def fetch_linkedin(url: str, headless: bool = False):
     """Scrape LinkedIn content"""
 
     browser, p = setup_browser_instance()
