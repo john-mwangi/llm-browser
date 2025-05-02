@@ -4,18 +4,16 @@ import asyncio
 import logging
 import os
 from datetime import datetime
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
 from llm_browser.src.browser.core import browse_content
-from llm_browser.src.browser.scrapers import (
-    download_content_google,
-    download_content_linkedin,
-)
-from llm_browser.src.database import get_mongodb_client
+from llm_browser.src.browser.scrapers import fetch_google, fetch_linkedin
+from llm_browser.src.database import get_mongodb_client, save_to_db
 from llm_browser.src.llm.models import models
-from llm_browser.src.llm.query import filter_roles, query_llm
+from llm_browser.src.llm.query import filter_query, query_llm
 from llm_browser.src.tasks import TaskType
 from llm_browser.src.utils import set_logging, string_to_dict
 
@@ -53,6 +51,8 @@ def main():
         filter_prompt = prompts.find_one({"type": "filter_roles"})["prompt"]
 
         for doc in docs:
+            run_id = uuid4().hex
+
             try:
                 task = TaskType(doc["task"])
             except Exception as e:
@@ -90,8 +90,20 @@ def main():
                     title=title,
                 )
 
+                logger.info("saving to database...")
+                save_to_db(
+                    fp=None,
+                    key=None,
+                    collection="results",
+                    data={
+                        "run_id": run_id,
+                        "title": title,
+                        "result": response,
+                    },
+                )
+
                 logger.info("posting to channel...")
-                filter_roles(
+                filter_query(
                     data=response,
                     prompt=filter_prompt,
                     model=models.get(text_model),
@@ -108,14 +120,14 @@ def main():
 
                 if url.startswith("https://www.google"):
                     try:
-                        data = download_content_google(url)
+                        data = fetch_google(url)
                     except Exception as e:
                         logger.exception(f"error with {url}: {e}")
                         continue
 
                 if url.startswith("https://www.linkedin"):
                     try:
-                        data = download_content_linkedin(url)
+                        data = fetch_linkedin(url)
                     except Exception as e:
                         logger.exception(f"error with {url}: {e}")
                         continue
@@ -128,8 +140,20 @@ def main():
                     model=models.get(text_model),
                 )
 
+                logger.info("saving to database...")
+                save_to_db(
+                    fp=None,
+                    key=None,
+                    collection="results",
+                    data={
+                        "run_id": run_id,
+                        "title": title,
+                        "result": response,
+                    },
+                )
+
                 logger.info("posting to channel...")
-                filter_roles(
+                filter_query(
                     data=response,
                     prompt=filter_prompt,
                     model=models.get(text_model),

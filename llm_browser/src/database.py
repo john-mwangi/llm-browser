@@ -28,7 +28,7 @@ def get_mongodb_client():
     return MongoClient(uri)
 
 
-def file_to_db(fp: Path | str, key: str, collection, data: dict):
+def save_to_db(fp: Path | str | None, key: str, collection: str, data: dict):
     """Inserts a document from a file into the database. The content of your
     file will be added to `data`
 
@@ -37,7 +37,7 @@ def file_to_db(fp: Path | str, key: str, collection, data: dict):
     - fp: the file path to the document or multiline string
     - key: the key to associate the file contents with
     - collection: the name of the collection to add this file to
-    - data: data content
+    - data: additional data content to add to fp
 
     Example
     ---
@@ -60,12 +60,17 @@ def file_to_db(fp: Path | str, key: str, collection, data: dict):
         db = client[db_name]
         coll = db[collection]
 
-        if isinstance(fp, Path):
+        if fp is None and data is not None:
+            coll.insert_one(data)
+            print(f"\nUploaded successfully to {collection=}")
+            return
+
+        elif isinstance(fp, Path) and key is not None:
             with open(fp) as f:
                 value = f.read()
                 content = {key: value}
 
-        elif isinstance(fp, str):
+        elif isinstance(fp, str) and key is not None:
             content = {key: fp}
 
         else:
