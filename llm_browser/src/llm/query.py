@@ -29,8 +29,8 @@ def query_llm(data: dict, prompt: str, model) -> str:
 
 
 @post_notification()
-def filter_roles(data: str, prompt: str, model, title: str) -> str:
-    """Queries an LLM model
+def filter_query(data: str, prompt: str, model, title: str):
+    """Filters the results of the scraping process using an LLM model
 
     Args
     ---
