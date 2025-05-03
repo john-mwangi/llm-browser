@@ -103,6 +103,18 @@ def main():
                     },
                 )
 
+                logger.info("saving to database...")
+                save_to_db(
+                    fp=None,
+                    key=None,
+                    collection="results",
+                    data={
+                        "run_id": run_id,
+                        "title": title,
+                        "result": response,
+                    },
+                )
+
                 logger.info("posting to channel...")
                 filter_query(
                     data=response,
