@@ -1,5 +1,6 @@
 """MongoDB client setup, functions to interact with collections"""
 
+import logging
 import os
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -7,7 +8,12 @@ from urllib.parse import quote_plus
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
+from llm_browser.src.utils import set_logging
+
 load_dotenv()
+
+set_logging()
+logger = logging.getLogger(__name__)
 
 
 def get_mongodb_client():
@@ -29,14 +35,14 @@ def get_mongodb_client():
 
 
 def save_to_db(fp: Path | str | None, key: str, collection: str, data: dict):
-    """Inserts a document from a file into the database. The content of your
-    file will be added to `data`
+    """Inserts a document from a file or a multiline string into the database.
+    The content of your file will be added to `data`.
 
     Args
     ---
     - fp: the file path to the document or multiline string
     - key: the key to associate the file contents with
-    - collection: the name of the collection to add this file to
+    - collection: the name of the collection to add fp/data to
     - data: additional data content to add to fp
 
     Example
@@ -62,7 +68,7 @@ def save_to_db(fp: Path | str | None, key: str, collection: str, data: dict):
 
         if fp is None and data is not None:
             coll.insert_one(data)
-            print(f"\nUploaded successfully to {collection=}")
+            logger.info(f"Uploaded successfully to {collection=}")
             return
 
         elif isinstance(fp, Path) and key is not None:
@@ -78,5 +84,4 @@ def save_to_db(fp: Path | str | None, key: str, collection: str, data: dict):
 
         document = {**data, **content}
         coll.insert_one(document)
-
-    print(f"\nUploaded successfully to {collection=}")
+        logger.info(f"Uploaded successfully to {collection=}")

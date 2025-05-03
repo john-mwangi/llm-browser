@@ -90,8 +90,8 @@ def fetch_google(url: str, headless: bool = False):
     return data
 
 
-def query_google(data: dict, prompt: str, model):
-    """Queries an LLM model
+def query_gemini(data: dict, prompt: str, model):
+    """Queries a Gemini model
 
     Args
     ---
@@ -131,7 +131,8 @@ def query_google(data: dict, prompt: str, model):
         json=json_data,
     )
 
-    return response
+    result = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+    return result
 
 
 def extract_transcript(url: str):
