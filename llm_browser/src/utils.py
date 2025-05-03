@@ -40,13 +40,31 @@ def format_content(content: str) -> str:
     return r2
 
 
+def post_response(content: str, webhook: str, title: str):
+    """Posts to a Discord, WhatApp, Slack, etc. using the webhook
+
+    Args
+    ---
+    content: the content to post
+    webhook: the webhook to post to
+    title: the title of the post
+    """
+    heading = f"# Postings for: **{title.title()}**\n\n"
+    content = format_content(content)
+    post = heading + content
+    chunks = chunk_string(post, max_length=2000)
+
+    for chunk in chunks:
+        json_result = {"content": chunk}
+        msg_resp = requests.post(url=webhook, json=json_result)
+
+
 def post_notification(webhook: str = WEB_HOOK):
-    """Posts the results of a function to a Discord, Slack, WhatsApp channel
+    """Decorator that posts the results of a function to a channel
 
     Args
     ---
     - webhook: the Discord webhook
-    - title: the title of the post
     """
 
     def decorator(func: Callable[..., Union[Response, str]]):
@@ -56,24 +74,7 @@ def post_notification(webhook: str = WEB_HOOK):
             result, title = func(*args, **kwargs)
 
             # post result to webhook
-            heading = f"# Postings for: **{title.title()}**\n\n"
-
-            if isinstance(result, Response):
-                result = result.json()["candidates"][0]["content"]["parts"][0][
-                    "text"
-                ]
-                r2 = format_content(result)
-                post = heading + r2
-
-            if isinstance(result, str):
-                result = format_content(result)
-                post = heading + result
-
-            chunks = chunk_string(post, max_length=2000)
-
-            for chunk in chunks:
-                json_result = {"content": chunk}
-                msg_resp = requests.post(url=webhook, json=json_result)
+            post_response(content=result, webhook=webhook, title=title)
 
             return result
 
