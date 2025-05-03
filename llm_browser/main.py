@@ -15,7 +15,7 @@ from llm_browser.src.database import get_mongodb_client, save_to_db
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import filter_query, query_llm
 from llm_browser.src.tasks import TaskType
-from llm_browser.src.utils import set_logging, string_to_dict
+from llm_browser.src.utils import set_logging
 
 load_dotenv(override=True)
 
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 tz = os.environ.get("TZ")
 text_model = os.environ.get("TEXT_MODEL")
 vision_model = os.environ.get("VISION_MODEL")
-ts = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d_%H%M%S")
 webhook = os.environ.get("DISCORD_WEBHOOK")
 db_name = os.environ.get("_MONGO_DB")
 
@@ -45,20 +44,21 @@ def main():
 
         resume_content = resumes.find_one({"type": "data engineer"})["resume"]
         resume_dict = {"resume": resume_content}
-        resume_prompt = prompts.find_one({"type": "google_augmented"})[
-            "prompt"
-        ]
+        resume_prompt = prompts.find_one({"type": "compare_roles"})["prompt"]
         filter_prompt = prompts.find_one({"type": "filter_roles"})["prompt"]
 
         for doc in docs:
             run_id = uuid4().hex
+            title = doc["title"]
+            created_at = datetime.now(tz=ZoneInfo(tz)).strftime(
+                "%Y-%m-%d %H%M%S"
+            )
+            logger.info(f"running task: {title}")
 
             try:
                 task = TaskType(doc["task"])
             except Exception as e:
                 raise ValueError(f"unknown task: {task}")
-
-            title = doc["title"]
 
             if task == TaskType.BROWSE:
                 main_prompt = prompts.find_one({"type": "browse"})["prompt"]
@@ -73,21 +73,21 @@ def main():
                 )
 
                 final_result = agent_history.final_result()
-                penultimate_result = agent_history.action_results()[
+                alternate_result = agent_history.action_results()[
                     -2
                 ].model_dump_json()
 
-                result_dict = string_to_dict(
-                    texts=[final_result, penultimate_result]
-                )
+                # result_dict = string_to_dict(
+                #     texts=[final_result, alternate_result]
+                # )
 
+                result_dict = {"roles": final_result}
                 augmented_data = {**result_dict, **resume_dict}
 
                 response = query_llm(
                     data=augmented_data,
                     prompt=resume_prompt,
                     model=models.get(text_model),
-                    title=title,
                 )
 
                 logger.info("saving to database...")
@@ -97,6 +97,7 @@ def main():
                     collection="results",
                     data={
                         "run_id": run_id,
+                        "created_at": created_at,
                         "title": title,
                         "result": response,
                     },
@@ -147,6 +148,7 @@ def main():
                     collection="results",
                     data={
                         "run_id": run_id,
+                        "created_at": created_at,
                         "title": title,
                         "result": response,
                     },
