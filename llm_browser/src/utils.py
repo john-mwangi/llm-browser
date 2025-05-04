@@ -64,7 +64,7 @@ def post_notification(webhook: str = WEB_HOOK):
 
     Args
     ---
-    - webhook: the Discord webhook
+    - webhook: the webhook to post a message to.
     """
 
     def decorator(func: Callable[..., Tuple[str, str]]):
