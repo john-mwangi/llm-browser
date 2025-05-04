@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Callable, Union
+from typing import Any, Callable, Tuple
 
 import requests
 from dotenv import load_dotenv
@@ -67,7 +67,7 @@ def post_notification(webhook: str = WEB_HOOK):
     - webhook: the Discord webhook
     """
 
-    def decorator(func: Callable[..., Union[Response, str]]):
+    def decorator(func: Callable[..., Tuple[str, str]]):
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
