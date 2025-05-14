@@ -92,6 +92,19 @@ def main():
                     model=models.get(text_model),
                 )
 
+                logger.info("saving to database...")
+                save_to_db(
+                    fp=None,
+                    key=None,
+                    collection="results",
+                    data={
+                        "run_id": run_id,
+                        "created_at": created_at,
+                        "title": title,
+                        "result": response,
+                    },
+                )
+
                 logger.info("saving results to database...")
                 save_to_db(
                     fp=None,
