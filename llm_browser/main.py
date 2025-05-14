@@ -27,6 +27,7 @@ text_model = os.environ.get("TEXT_MODEL")
 vision_model = os.environ.get("VISION_MODEL")
 webhook = os.environ.get("DISCORD_WEBHOOK")
 db_name = os.environ.get("_MONGO_DB")
+context_name = os.environ.get("CONTEXT_NAME")
 
 
 def main():
@@ -35,7 +36,7 @@ def main():
     with client:
         db = client[db_name]
         prompts = db["prompts"]
-        context = db["context"]
+        context = db[context_name]
         resumes = db["resumes"]
 
         counts_ = context.estimated_document_count()
@@ -81,6 +82,7 @@ def main():
                 #     texts=[final_result, alternate_result]
                 # )
 
+                logger.info(f"browser results: {final_result}")
                 result_dict = {"roles": final_result}
                 augmented_data = {**result_dict, **resume_dict}
 
@@ -99,8 +101,8 @@ def main():
                         "run_id": run_id,
                         "created_at": created_at,
                         "models": {
-                            "vision_model": models.get("vision_model").model,
-                            "text_model": models.get("text_model").model,
+                            "vision_model": models.get(vision_model).model,
+                            "text_model": models.get(text_model).model,
                         },
                         "title": title,
                         "result": response,
@@ -154,8 +156,8 @@ def main():
                         "run_id": run_id,
                         "created_at": created_at,
                         "models": {
-                            "vision_model": models.get("vision_model").model,
-                            "text_model": models.get("text_model").model,
+                            "vision_model": models.get(vision_model).model,
+                            "text_model": models.get(text_model).model,
                         },
                         "title": title,
                         "result": response,
