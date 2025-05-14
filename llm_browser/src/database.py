@@ -3,6 +3,7 @@
 import logging
 import os
 from pathlib import Path
+from typing import Optional
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
@@ -34,7 +35,9 @@ def get_mongodb_client():
     return MongoClient(uri)
 
 
-def save_to_db(fp: Path | str | None, key: str, collection: str, data: dict):
+def save_to_db(
+    fp: Optional[Path | str], key: str, collection: str, data: Optional[dict]
+):
     """Inserts a document from a file or a multiline string into the database.
     The content of your file will be added to `data`.
 
