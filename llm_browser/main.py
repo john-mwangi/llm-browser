@@ -27,6 +27,7 @@ text_model = os.environ.get("TEXT_MODEL")
 vision_model = os.environ.get("VISION_MODEL")
 webhook = os.environ.get("DISCORD_WEBHOOK")
 db_name = os.environ.get("_MONGO_DB")
+context_name = os.environ.get("CONTEXT_NAME")
 
 
 def main():
@@ -35,7 +36,7 @@ def main():
     with client:
         db = client[db_name]
         prompts = db["prompts"]
-        context = db["context"]
+        context = db[context_name]
         resumes = db["resumes"]
 
         counts_ = context.estimated_document_count()
@@ -81,6 +82,7 @@ def main():
                 #     texts=[final_result, alternate_result]
                 # )
 
+                logger.info(f"browser results: {final_result}")
                 result_dict = {"roles": final_result}
                 augmented_data = {**result_dict, **resume_dict}
 
@@ -103,13 +105,18 @@ def main():
                     },
                 )
 
-                logger.info("saving to database...")
+                logger.info("saving results to database...")
                 save_to_db(
                     fp=None,
                     key=None,
                     collection="results",
                     data={
                         "run_id": run_id,
+                        "created_at": created_at,
+                        "models": {
+                            "vision_model": models.get(vision_model).model,
+                            "text_model": models.get(text_model).model,
+                        },
                         "title": title,
                         "result": response,
                     },
@@ -153,7 +160,7 @@ def main():
                     model=models.get(text_model),
                 )
 
-                logger.info("saving to database...")
+                logger.info("saving results to database...")
                 save_to_db(
                     fp=None,
                     key=None,
@@ -161,6 +168,10 @@ def main():
                     data={
                         "run_id": run_id,
                         "created_at": created_at,
+                        "models": {
+                            "vision_model": models.get(vision_model).model,
+                            "text_model": models.get(text_model).model,
+                        },
                         "title": title,
                         "result": response,
                     },
