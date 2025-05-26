@@ -1,0 +1,13 @@
+# ref: https://toml.io/en/
+
+task = "scrape"
+
+title = "Title Of The Prompt"
+
+url = "https://www.example.com/"
+
+prompt = """\
+Your multiline prompt\
+comes here including \
+output format. \
+"""
