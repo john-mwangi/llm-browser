@@ -5,15 +5,17 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Any, Callable, Tuple
 
 import requests
 from dotenv import load_dotenv
-from requests import Response
 
 load_dotenv()
 
 WEB_HOOK = os.environ.get("DISCORD_WEBHOOK")
+REQ_PER_SEC = 50
+MIN_DELAY_SEC = 0.1
 
 
 def set_logging():
@@ -31,6 +33,11 @@ def chunk_string(input_string, max_length):
     while input_string:
         chunks.append(input_string[:max_length])
         input_string = input_string[max_length:]
+    return chunks
+
+
+def split_string(input_string: str, sep: str):
+    chunks = input_string.split(sep)
     return chunks
 
 
@@ -52,11 +59,13 @@ def post_response(content: str, webhook: str, title: str):
     heading = f"# Postings for: **{title.title()}**\n\n"
     content = format_content(content)
     post = heading + content
-    chunks = chunk_string(post, max_length=2000)
+    chunks = split_string(post, sep="\n\n")
+    delay = 60 / (REQ_PER_SEC * 60) + MIN_DELAY_SEC
 
     for chunk in chunks:
         json_result = {"content": chunk}
         msg_resp = requests.post(url=webhook, json=json_result)
+        time.sleep(delay)
 
 
 def post_notification(webhook: str = WEB_HOOK):
