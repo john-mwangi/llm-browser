@@ -8,6 +8,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
+from playwright.sync_api import BrowserContext, sync_playwright
 
 from llm_browser.src.browser.core import browse_content
 from llm_browser.src.browser.scrapers import fetch_google, fetch_linkedin
@@ -30,7 +31,7 @@ db_name = os.environ.get("_MONGO_DB")
 context_name = os.environ.get("CONTEXT_NAME")
 
 
-def main():
+def main(browser_context: BrowserContext):
     client = get_mongodb_client()
 
     with client:
@@ -147,7 +148,8 @@ def main():
 
                 if url.startswith("https://www.linkedin"):
                     try:
-                        data = fetch_linkedin(url)
+                        # data = fetch_linkedin(url, browser)
+                        data = fetch_linkedin(url, browser_context)
                     except Exception as e:
                         logger.exception(f"error with {url}: {e}")
                         continue
@@ -187,4 +189,9 @@ def main():
 
 
 if "__name__" == "__name__":
-    main()
+    from llm_browser.src.configs.config import browser_args
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, args=browser_args)
+        context = browser.new_context()
+        main(browser_context=context)

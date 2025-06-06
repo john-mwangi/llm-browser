@@ -6,11 +6,10 @@ import time
 
 import requests
 from dotenv import load_dotenv
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import BrowserContext, Page, sync_playwright
 from tqdm import tqdm
 
 from llm_browser.src.browser.core import setup_browser_instance
-from llm_browser.src.configs.config import browser_args
 from llm_browser.src.utils import set_logging
 
 load_dotenv()
@@ -236,18 +235,24 @@ def get_job_cards(page: Page):
     Extract job details from search results.
     """
     res = []
-    try:
-        page.wait_for_selector(
-            "ul.UqvsszlKcsHVxKPENVjvrBhRdSmTopYxAtIreCY", timeout=10000
-        )
-    except Exception:
-        logger.warning(
-            "Main job list container not found. No jobs to extract on this page."
-        )
-        return []
 
-    job_cards = page.locator(".job-card-container")
-    for i in range(job_cards.count()):
+    job_cards_locator = "div.scaffold-layout__list > div > ul > li"
+    page.wait_for_selector(job_cards_locator)
+
+    # scroll to load all jobs
+    max_scrolls = 5
+
+    for _ in range(max_scrolls):
+        page.mouse.wheel(0, 10000)
+        time.sleep(2)
+        end_marker = page.get_by_role("button", name="View next page")
+        if end_marker.is_visible():
+            logger.info("Reached end of page.")
+            break
+
+    job_cards = page.locator(job_cards_locator)
+    logger.info(f"found {job_cards.count()} jobs")
+    for i in tqdm(range(job_cards.count())):
         card = job_cards.nth(i)
         card.click()
         time.sleep(2)
@@ -272,71 +277,58 @@ def get_job_cards(page: Page):
 
 def fetch_linkedin(
     url: str,
-    headless: bool = False,
+    context: BrowserContext,
     home_page: str = "https://www.linkedin.com/",
     login_success: str = "https://www.linkedin.com/feed/",
-    max_pages: int = 5,
+    max_pages: int = 10,
 ):
     """
     Fetches LinkedIn job listings, including pagination, when logged in.
     """
     results = []
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless, args=browser_args)
-        page = browser.new_page()
-        logger.info(f"Navigating to {home_page=}")
-        page.goto(home_page, wait_until="domcontentloaded")
-
-        try:
-            sign_in_cta = page.locator(
-                '[data-test-id="home-hero-sign-in-cta"]'
-            )
-            if sign_in_cta.is_visible():
-                logger.info("Clicking sign-in CTA.")
-                sign_in_cta.click()
-                page.wait_for_url("**/login*")
-            else:
-                logger.info("Already logged in.")
-        except Exception as e:
-            logger.warning(f"Could not find or click sign-in CTA: {e}")
-
+    page = context.new_page()
+    logger.info(f"Navigating to {home_page=}")
+    page.goto(home_page, wait_until="domcontentloaded")
+    current_page = page.url
+    if current_page == login_success:
+        logger.info("Already logged in")
+    else:
+        page.locator('[data-test-id="home-hero-sign-in-cta"]').click()
         page.get_by_role("textbox", name="Email or phone").fill(
             LINKEDIN_USERNAME
         )
         page.get_by_role("textbox", name="Password").fill(LINKEDIN_PASSWORD)
         page.get_by_role("button", name="Sign in", exact=True).click()
-        page.wait_for_url(login_success)
-        logger.info(f"Navigating to: {url=}")
-        page.goto(url, wait_until="domcontentloaded")
+        page.wait_for_url(login_success, wait_until="domcontentloaded")
 
-        current_page_num = 1
-        while current_page_num <= max_pages:
-            logger.info(f"Processing page {current_page_num}...")
-            res = get_job_cards(page)
-            results.extend(res)
-            next_button = page.locator('button[aria-label="View next page"]')
-            if next_button.is_visible() and not next_button.is_disabled():
-                logger.info(
-                    "Clicking 'Next' button to navigate to the next page."
-                )
-                try:
-                    next_button.click()
-                    page.wait_for_load_state("domcontentloaded")
-                    page.wait_for_selector(
-                        ".job-card-container", timeout=10000
-                    )
-                    current_page_num += 1
-                except Exception as e:
-                    logger.error(f"Error navigating to next page: {e}")
-                    break
-            else:
-                logger.info(
-                    " 'Next' button not visible or disabled. End of pagination."
-                )
+    logger.info(f"Navigating to: {url=}")
+    page.goto(url, wait_until="domcontentloaded")
+
+    current_page_num = 1
+    while current_page_num <= max_pages:
+        logger.info(f"Processing page {current_page_num}...")
+        res = get_job_cards(page)
+        results.extend(res)
+        next_button = page.locator('button[aria-label="View next page"]')
+        if next_button.is_visible() and not next_button.is_disabled():
+            logger.info("Clicking 'Next' button to navigate to the next page.")
+            try:
+                next_button.click()
+                page.wait_for_load_state("domcontentloaded")
+                page.wait_for_selector(".job-card-container")
+                res = get_job_cards(page)
+                current_page_num += 1
+            except Exception as e:
+                logger.error(f"Error navigating to next page: {e}")
                 break
+        else:
+            logger.info(
+                "'Next' button not visible or disabled. End of pagination."
+            )
+            break
 
         logger.info(
             f"Finished fetching jobs. Total jobs extracted: {len(results)}"
         )
-        browser.close()
+    logger.info(f"total jobs extracted: {len(results)}")
     return results
