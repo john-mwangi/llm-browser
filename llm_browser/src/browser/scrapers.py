@@ -10,12 +10,16 @@ from playwright.sync_api import Page, sync_playwright
 from tqdm import tqdm
 
 from llm_browser.src.browser.core import setup_browser_instance
+from llm_browser.src.configs.config import browser_args
 from llm_browser.src.utils import set_logging
 
 load_dotenv()
 
 set_logging()
 logger = logging.getLogger(__name__)
+
+LINKEDIN_USERNAME = os.environ.get("LINKEDIN_USERNAME")
+LINKEDIN_PASSWORD = os.environ.get("LINKEDIN_PASSWORD")
 
 
 def check_captcha(page: Page):
@@ -133,7 +137,7 @@ def query_gemini(data: dict, prompt: str, model):
     return result
 
 
-def fetch_linkedin(url: str, headless: bool = False):
+def fetch_linkedin_logged_out(url: str, headless: bool = False):
     """Scrape LinkedIn content"""
 
     browser, p = setup_browser_instance()
@@ -224,5 +228,115 @@ def fetch_linkedin(url: str, headless: bool = False):
 
     browser.close()
     p.stop()
+    return results
 
+
+def get_job_cards(page: Page):
+    """
+    Extract job details from search results.
+    """
+    res = []
+    try:
+        page.wait_for_selector(
+            "ul.UqvsszlKcsHVxKPENVjvrBhRdSmTopYxAtIreCY", timeout=10000
+        )
+    except Exception:
+        logger.warning(
+            "Main job list container not found. No jobs to extract on this page."
+        )
+        return []
+
+    job_cards = page.locator(".job-card-container")
+    for i in range(job_cards.count()):
+        card = job_cards.nth(i)
+        card.click()
+        time.sleep(2)
+        job_title = card.locator(".job-card-container__link strong")
+        company_name = card.locator(".artdeco-entity-lockup__subtitle span")
+        location_name = card.locator(".artdeco-entity-lockup__caption li span")
+        title = job_title.inner_text() if job_title else "N/A"
+        company = company_name.inner_text() if company_name else "N/A"
+        location = location_name.inner_text() if location_name else "N/A"
+        job_details = ".jobs-box__html-content#job-details"
+        job_description = page.query_selector(job_details)
+        res.append(
+            {
+                "title": title.strip(),
+                "company": company.strip(),
+                "location": location.strip(),
+                "description": job_description.inner_text(),
+            }
+        )
+    return res
+
+
+def fetch_linkedin(
+    url: str,
+    headless: bool = False,
+    home_page: str = "https://www.linkedin.com/",
+    login_success: str = "https://www.linkedin.com/feed/",
+    max_pages: int = 5,
+):
+    """
+    Fetches LinkedIn job listings, including pagination, when logged in.
+    """
+    results = []
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=headless, args=browser_args)
+        page = browser.new_page()
+        logger.info(f"Navigating to {home_page=}")
+        page.goto(home_page, wait_until="domcontentloaded")
+
+        try:
+            sign_in_cta = page.locator(
+                '[data-test-id="home-hero-sign-in-cta"]'
+            )
+            if sign_in_cta.is_visible():
+                logger.info("Clicking sign-in CTA.")
+                sign_in_cta.click()
+                page.wait_for_url("**/login*")
+            else:
+                logger.info("Already logged in.")
+        except Exception as e:
+            logger.warning(f"Could not find or click sign-in CTA: {e}")
+
+        page.get_by_role("textbox", name="Email or phone").fill(
+            LINKEDIN_USERNAME
+        )
+        page.get_by_role("textbox", name="Password").fill(LINKEDIN_PASSWORD)
+        page.get_by_role("button", name="Sign in", exact=True).click()
+        page.wait_for_url(login_success)
+        logger.info(f"Navigating to: {url=}")
+        page.goto(url, wait_until="domcontentloaded")
+
+        current_page_num = 1
+        while current_page_num <= max_pages:
+            logger.info(f"Processing page {current_page_num}...")
+            res = get_job_cards(page)
+            results.extend(res)
+            next_button = page.locator('button[aria-label="View next page"]')
+            if next_button.is_visible() and not next_button.is_disabled():
+                logger.info(
+                    "Clicking 'Next' button to navigate to the next page."
+                )
+                try:
+                    next_button.click()
+                    page.wait_for_load_state("domcontentloaded")
+                    page.wait_for_selector(
+                        ".job-card-container", timeout=10000
+                    )
+                    current_page_num += 1
+                except Exception as e:
+                    logger.error(f"Error navigating to next page: {e}")
+                    break
+            else:
+                logger.info(
+                    " 'Next' button not visible or disabled. End of pagination."
+                )
+                break
+
+        logger.info(
+            f"Finished fetching jobs. Total jobs extracted: {len(results)}"
+        )
+        browser.close()
     return results
