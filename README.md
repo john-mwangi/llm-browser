@@ -15,7 +15,6 @@ web scraping and content summarization
 1. **Task Management:** Defines and executes tasks such as browsing and scraping based on configurations.
 1. **Data Handling:** Uses MongoDB to store prompts, context, and results.
 1. **Reporting:** Posts LLM-generated responses to platforms like Discord using webhooks.
-1. **Transcript Extraction:** Extracts transcripts from Fireflies.ai meeting URLs.
 
 ## Setup and Installation
 1. Clone this repository.
