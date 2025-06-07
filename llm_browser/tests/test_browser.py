@@ -21,7 +21,7 @@ from llm_browser.src.llm.models import models
 load_dotenv()
 
 
-@pytest.mark.skip
+@pytest.mark.skip(reason="requires xvfb to work in headless")
 def test_headless(
     url: str = "https://arh.antoinevastel.com/bots/areyouheadless",
 ):
@@ -30,8 +30,6 @@ def test_headless(
         page = browser.new_page()
         page.goto(url=url, wait_until="networkidle")
         answer = page.locator("#res").text_content()
-
-        # required xvfb to work in headless
         assert answer == "You are not Chrome headless"
 
 
