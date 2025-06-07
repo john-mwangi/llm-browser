@@ -99,7 +99,7 @@ def fetch_google(url: str, context: BrowserContext, limit: int = None):
             )
 
         except Exception as e:
-            logger.exception(f"error on '{link.text_content()}': {e}")
+            logger.exception(f"error on '{url}': {e}")
 
         logger.info(f"successfully retrieved '{link.text_content()}' content")
 
