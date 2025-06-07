@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
 from llm_browser.src.browser.scrapers import (
+    fetch_google,
     fetch_linkedin,
     fetch_linkedin_logged_out,
 )
@@ -88,3 +89,36 @@ def test_fetch_linkedin(loggedin=[True]):
 
                 assert all([k in result_keys for k in keys_])
                 assert len(item["description"]) > len("About us") * 5
+
+
+def test_fetch_google():
+    db_name = os.environ.get("_MONGO_DB")
+    context_name = os.environ.get("CONTEXT_NAME")
+    ids = [
+        ObjectId(i)
+        for i in ["67f7e626ceb330e99ad861e0", "67fe8adbfae9e89e0dba5b91"]
+    ]
+
+    client = get_mongodb_client()
+    with client:
+        db = client[db_name]
+        context = db[context_name]
+        docs = context.find({"_id": {"$in": ids}})
+        urls = [doc["url"] for doc in docs]
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, args=browser_args)
+        context = browser.new_context()
+
+        for url in urls:
+            data = fetch_google(url=url, limit=2, context=context)
+            item = data[0]
+            keys_ = item.keys()
+            result_keys = [
+                "title",
+                "company",
+                "description",
+            ]
+
+            assert all([k in result_keys for k in keys_])
+            assert len(item["description"]) > len("Job description") * 5
