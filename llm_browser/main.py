@@ -141,7 +141,7 @@ def main(browser_context: BrowserContext):
 
                 if url.startswith("https://www.google"):
                     try:
-                        data = fetch_google(url)
+                        data = fetch_google(url, context=browser_context)
                     except Exception as e:
                         logger.exception(f"error with {url}: {e}")
                         continue

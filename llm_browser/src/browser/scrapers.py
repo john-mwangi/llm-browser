@@ -6,7 +6,7 @@ import time
 
 import requests
 from dotenv import load_dotenv
-from playwright.sync_api import BrowserContext, Page, sync_playwright
+from playwright.sync_api import BrowserContext, Page
 from tqdm import tqdm
 
 from llm_browser.src.browser.core import setup_browser_instance
@@ -39,7 +39,7 @@ def check_captcha(page: Page):
     return has_captcha
 
 
-def fetch_google(url: str, headless: bool = False):
+def fetch_google(url: str, context: BrowserContext, limit: int = None):
     """Download and process content from a URL
 
     Args
@@ -48,47 +48,62 @@ def fetch_google(url: str, headless: bool = False):
     headless: boolean indicating whether to use a headless browser
     """
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
-        page = browser.new_page()
-        page.goto(url)
+    page = context.new_page()
+    page.goto(url)
 
-        # check for captcha challenge
-        has_captcha = check_captcha(page)
-        if has_captcha:
-            page.pause()
+    # check for captcha challenge
+    has_captcha = check_captcha(page)
+    if has_captcha:
+        page.pause()
 
-        page.wait_for_selector("body")
+    page.wait_for_selector("body")
 
-        links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
-        entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
-        entities = [e.text_content().strip() for e in entities]
+    links = page.query_selector_all(selector="div.tNxQIb.PUpOsf")
+    entities = page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
+    entities = [e.text_content().strip() for e in entities]
 
-        if len(links) == 0:
-            logger.warning("there was an issue extracting links")
+    if len(links) == 0:
+        logger.warning("there was an issue extracting links")
 
-        data = {}
+    result = []
 
-        for link, entity in zip(links, entities):
-            link.click()
+    limit = limit if limit is not None else len(links)
 
-            try:
-                page.get_by_role(
-                    role="button", name="Show full description"
-                ).click(timeout=5000)
-                page.wait_for_load_state("domcontentloaded")
-                content = page.query_selector("div.NgUYpe").text_content()
-                data[link.text_content()] = f"Company: {entity}\n\n" + content
+    counter = 0
+    for i, (link, entity) in enumerate(zip(links, entities)):
+        link.click()
+        counter += 1
+        if counter > limit:
+            logger.warning(f"Exceeded {limit=}")
+            break
 
-            except Exception as e:
-                logger.exception(f"error on '{link.text_content()}': {e}")
-                data[link.text_content()] = f"Company: {entity}\n\n"
+        try:
+            page.get_by_role(
+                role="button", name="Show full description"
+            ).click(timeout=10000)
+            page.wait_for_load_state("domcontentloaded")
+            descriptions = page.query_selector_all("div.NgUYpe")
+            descriptions = [
+                jd.text_content()
+                for jd in descriptions
+                if jd.text_content() != "Report this listing"
+            ]
+            job_title = link.text_content()
 
-            logger.info(
-                f"successfully retrieved '{link.text_content()}' content"
+            result.append(
+                {
+                    "title": job_title,
+                    "company": entity,
+                    "description": descriptions[i],
+                }
             )
 
-    return data
+        except Exception as e:
+            logger.exception(f"error on '{link.text_content()}': {e}")
+
+        logger.info(f"successfully retrieved '{link.text_content()}' content")
+
+    return result
 
 
 def query_gemini(data: dict, prompt: str, model):
