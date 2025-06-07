@@ -6,7 +6,7 @@ import time
 
 import requests
 from dotenv import load_dotenv
-from playwright.sync_api import BrowserContext, Page
+from playwright.sync_api import BrowserContext, Error, Page
 from tqdm import tqdm
 
 from llm_browser.src.browser.core import setup_browser_instance
@@ -99,7 +99,7 @@ def fetch_google(url: str, context: BrowserContext, limit: int = None):
             )
 
         except Exception as e:
-            logger.exception(f"error on '{link.text_content()}': {e}")
+            logger.exception(f"error on '{url}': {e}")
 
         logger.info(f"successfully retrieved '{link.text_content()}' content")
 
@@ -280,8 +280,10 @@ def get_job_cards(page: Page, limit: int = None):
         title = job_title.inner_text() if job_title else "N/A"
         try:
             company = company_name.inner_text() if company_name else "N/A"
+        except Error:
+            company = company_name.nth(0).inner_text()
         except Exception as e:
-            breakpoint()
+            logger.exception(e)
         location = location_name.inner_text() if location_name else "N/A"
         job_details = ".jobs-box__html-content#job-details"
         job_description = page.query_selector(job_details)
@@ -315,7 +317,6 @@ def fetch_linkedin(
     if current_page == login_success:
         logger.info("Already logged in")
     else:
-        breakpoint()
         page.locator('[data-test-id="home-hero-sign-in-cta"]').click()
         page.get_by_role("textbox", name="Email or phone").fill(
             LINKEDIN_USERNAME
@@ -329,7 +330,7 @@ def fetch_linkedin(
 
     if limit is not None:
         res = get_job_cards(page, limit)
-        return [res]
+        return res
 
     current_page_num = 1
     while current_page_num <= max_pages:
