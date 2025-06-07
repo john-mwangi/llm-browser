@@ -3,6 +3,7 @@ import os
 
 import pytest
 import requests
+from bson import ObjectId
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
@@ -11,6 +12,7 @@ from llm_browser.src.browser.scrapers import (
     fetch_linkedin_logged_out,
 )
 from llm_browser.src.configs.config import ROOT_DIR, browser_args
+from llm_browser.src.database import get_mongodb_client
 
 load_dotenv()
 
@@ -52,10 +54,19 @@ def test_google_search():
 
 def test_linkedin(loggedin=[True]):
 
-    urls = [
-        "https://www.linkedin.com/jobs/search/?currentJobId=4179406112&distance=25&f_TPR=r604800&geoId=100710459&keywords=(analytics%20OR%20%22data%20science%22%20OR%20%22business%20intelligence%22%20OR%20%22data%20strategy%22%20OR%20%22data%20governance%22%20OR%20%22data%20engineer%22%20OR%20%22machine%20learning%22)%20NOT%20%22Lumenalta%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true",
-        "https://www.linkedin.com/jobs/search/?currentJobId=4219865496&distance=25&f_TPR=r604800&f_WT=2&geoId=104035573&keywords=(analytics%20OR%20%22data%20science%22%20OR%20%22business%20intelligence%22%20OR%20%22data%20strategy%22%20OR%20%22data%20governance%22%20OR%20%22data%20engineer%22%20OR%20%22machine%20learning%22)%20NOT%20%22Lumenalta%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true",
+    db_name = os.environ.get("_MONGO_DB")
+    context_name = os.environ.get("CONTEXT_NAME")
+    ids = [
+        ObjectId(i)
+        for i in ["68128e1796cefad9b2cd1bc7", "681299be96cefad9b2cd1bcd"]
     ]
+
+    client = get_mongodb_client()
+    with client:
+        db = client[db_name]
+        context = db[context_name]
+        docs = context.find({"_id": {"$in": ids}})
+        urls = [doc["url"] for doc in docs]
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False, args=browser_args)
