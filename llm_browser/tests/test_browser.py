@@ -52,7 +52,7 @@ def test_google_search():
         json.dump(data, f, indent=2)
 
 
-def test_linkedin(loggedin=[True]):
+def test_fetch_linkedin(loggedin=[True]):
 
     db_name = os.environ.get("_MONGO_DB")
     context_name = os.environ.get("CONTEXT_NAME")
