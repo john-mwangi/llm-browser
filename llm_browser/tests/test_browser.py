@@ -54,12 +54,17 @@ def test_google_search():
         json.dump(data, f, indent=2)
 
 
-def test_fetch_linkedin(loggedin=[True]):
+def test_fetch_linkedin(loggedin=[True], limit=2):
     db_name = os.environ.get("_MONGO_DB")
     collection_name = os.environ.get("CONTEXT_NAME")
     ids = [
         ObjectId(i)
-        for i in ["68128e1796cefad9b2cd1bc7", "681299be96cefad9b2cd1bcd"]
+        for i in [
+            "68128e1796cefad9b2cd1bc7",
+            "6812962096cefad9b2cd1bc9",
+            "681299be96cefad9b2cd1bcd",
+            "68129a3f96cefad9b2cd1bcf",
+        ]
     ]
 
     client = get_mongodb_client()
@@ -77,21 +82,21 @@ def test_fetch_linkedin(loggedin=[True]):
             if False in loggedin:
                 data = fetch_linkedin_logged_out(url=url)
             if True in loggedin:
-                data = fetch_linkedin(url=url, limit=1, context=context)
-                item = data[0][0]
-                keys_ = item.keys()
-                result_keys = [
-                    "title",
-                    "company",
-                    "location",
-                    "description",
-                ]
+                data = fetch_linkedin(url=url, limit=limit, context=context)
+            item = data[0]
+            keys_ = item.keys()
+            result_keys = [
+                "title",
+                "company",
+                "location",
+                "description",
+            ]
 
-                assert all([k in result_keys for k in keys_])
-                assert len(item["description"]) > len("About us") * 5
+            assert all([k in result_keys for k in keys_])
+            assert len(item["description"]) > len("About us") * 5
 
 
-def test_fetch_google():
+def test_fetch_google(limit=2):
     db_name = os.environ.get("_MONGO_DB")
     collection_name = os.environ.get("CONTEXT_NAME")
     ids = [
@@ -111,7 +116,7 @@ def test_fetch_google():
         context = browser.new_context()
 
         for url in urls:
-            data = fetch_google(url=url, limit=2, context=context)
+            data = fetch_google(url=url, limit=limit, context=context)
             item = data[0]
             keys_ = item.keys()
             result_keys = [
