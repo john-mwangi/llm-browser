@@ -60,3 +60,14 @@ db.prompts.insertOne( {
     result format: # <title> \n <entity> \n <summary>"
 } )
 ```
+
+## Running Tests
+To run all tests:
+```bash
+pytest -vs
+```
+
+To run a specific test case:
+```bash
+pytest -vs tests/test_browser.py::test_fetch_linkedin
+```
