@@ -230,7 +230,7 @@ def fetch_linkedin_logged_out(url: str, headless: bool = False):
     return results
 
 
-def get_job_cards(page: Page):
+def get_job_cards(page: Page, limit: int = None):
     """
     Extract job details from search results.
     """
@@ -252,7 +252,10 @@ def get_job_cards(page: Page):
 
     job_cards = page.locator(job_cards_locator)
     logger.info(f"found {job_cards.count()} jobs")
-    for i in tqdm(range(job_cards.count())):
+
+    limit = limit if limit is not None else job_cards.count()
+
+    for i in tqdm(range(limit)):
         card = job_cards.nth(i)
         card.click()
         time.sleep(2)
@@ -260,7 +263,10 @@ def get_job_cards(page: Page):
         company_name = card.locator(".artdeco-entity-lockup__subtitle span")
         location_name = card.locator(".artdeco-entity-lockup__caption li span")
         title = job_title.inner_text() if job_title else "N/A"
-        company = company_name.inner_text() if company_name else "N/A"
+        try:
+            company = company_name.inner_text() if company_name else "N/A"
+        except Exception as e:
+            breakpoint()
         location = location_name.inner_text() if location_name else "N/A"
         job_details = ".jobs-box__html-content#job-details"
         job_description = page.query_selector(job_details)
@@ -281,6 +287,7 @@ def fetch_linkedin(
     home_page: str = "https://www.linkedin.com/",
     login_success: str = "https://www.linkedin.com/feed/",
     max_pages: int = 10,
+    limit: int = None,
 ):
     """
     Fetches LinkedIn job listings, including pagination, when logged in.
@@ -293,6 +300,7 @@ def fetch_linkedin(
     if current_page == login_success:
         logger.info("Already logged in")
     else:
+        breakpoint()
         page.locator('[data-test-id="home-hero-sign-in-cta"]').click()
         page.get_by_role("textbox", name="Email or phone").fill(
             LINKEDIN_USERNAME
@@ -303,6 +311,10 @@ def fetch_linkedin(
 
     logger.info(f"Navigating to: {url=}")
     page.goto(url, wait_until="domcontentloaded")
+
+    if limit is not None:
+        res = get_job_cards(page, limit)
+        return [res]
 
     current_page_num = 1
     while current_page_num <= max_pages:
