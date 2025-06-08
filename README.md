@@ -68,5 +68,5 @@ pytest -vs
 
 To run a specific test case:
 ```bash
-pytest -vs tests/test_browser.py::test_fetch_linkedin
+pytest -vs tests/test_scrapers.py::test_fetch_linkedin
 ```
