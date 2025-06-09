@@ -96,29 +96,31 @@ async def fetch_google(url: str, context: BrowserContext, limit: int = None):
             ).click(timeout=10000)
             await page.wait_for_load_state("domcontentloaded")
 
-            descriptions_element = await page.query_selector("div.NgUYpe")
-            prev_desc = await descriptions_element.text_content()
             job_title = await link.text_content()
 
-            all_desc_element = await page.query_selector_all("div.NgUYpe")
+            descriptions = await page.query_selector_all("div.NgUYpe")
             current_desc = []
-            for jd in all_desc_element:
+            for jd in descriptions:
                 jd_text = await jd.text_content()
                 if jd_text != "Report this listing":
                     current_desc.append(jd_text)
 
-            result.append(
-                {
-                    "title": job_title.strip(),
-                    "company": entity.strip(),
-                    "description": "",
-                }
-            )
-
-            if result[i - 1]:
-                result[i - 1]["description"] = prev_desc
-            if i == len(links) - 1:
-                result[i]["description"] = current_desc[-1]
+            if i == 0:
+                result.append(
+                    {
+                        "title": job_title.strip(),
+                        "company": entity.strip(),
+                        "description": current_desc[0].strip(),
+                    }
+                )
+            else:
+                result.append(
+                    {
+                        "title": job_title.strip(),
+                        "company": entity.strip(),
+                        "description": current_desc[1].strip(),
+                    }
+                )
 
         except Exception as e:
             logger.exception(f"error on '{url}': {e}")
