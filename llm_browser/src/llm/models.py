@@ -21,5 +21,5 @@ models = {
         model="llama3.2:3b", base_url=base_url, disable_streaming=True
     ),
     "gemini-vision": ChatGoogleGenerativeAI(model="gemini-2.0-flash"),
-    "gemini-text": ChatGoogleGenerativeAI(model="gemini-1.5-flash"),
+    "gemini-text": ChatGoogleGenerativeAI(model="gemini-2.0-flash"),
 }
