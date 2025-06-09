@@ -58,6 +58,17 @@ async def fetch_google(url: str, context: BrowserContext, limit: int = None):
 
     await page.wait_for_selector("body")
 
+    # scroll to load all jobs
+    max_scrolls = 5
+
+    for _ in range(max_scrolls):
+        await page.mouse.wheel(0, 10000)
+        time.sleep(2)
+        end_marker = page.get_by_text("No more jobs match your exact")
+        if await end_marker.is_visible():
+            logger.info("Reached end of page.")
+            break
+
     links = await page.query_selector_all(selector="div.tNxQIb.PUpOsf")
     entities_element = await page.query_selector_all("div.wHYlTd.MKCbgd.a3jPc")
     entities = []
