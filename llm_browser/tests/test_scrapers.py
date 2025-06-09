@@ -5,6 +5,7 @@ import pytest
 import requests
 from bson import ObjectId
 from dotenv import load_dotenv
+from playwright.async_api import async_playwright
 from playwright.sync_api import sync_playwright
 
 from llm_browser.src.browser.scrapers import (
@@ -51,7 +52,8 @@ def test_google_search():
         json.dump(data, f, indent=2)
 
 
-def test_fetch_linkedin(loggedin=[True], limit=2):
+@pytest.mark.asyncio
+async def test_fetch_linkedin(loggedin=[True], limit=2):
     db_name = os.environ.get("_MONGO_DB")
     collection_name = os.environ.get("CONTEXT_NAME")
     ids = [
@@ -71,15 +73,17 @@ def test_fetch_linkedin(loggedin=[True], limit=2):
         docs = collection.find({"_id": {"$in": ids}})
         urls = [doc["url"] for doc in docs]
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=browser_args)
-        context = browser.new_context()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False, args=browser_args)
+        context = await browser.new_context()
 
         for url in urls:
             if False in loggedin:
                 data = fetch_linkedin_logged_out(url=url)
             if True in loggedin:
-                data = fetch_linkedin(url=url, limit=limit, context=context)
+                data = await fetch_linkedin(
+                    url=url, limit=limit, context=context
+                )
             item = data[0]
             keys_ = item.keys()
             result_keys = [
@@ -93,7 +97,8 @@ def test_fetch_linkedin(loggedin=[True], limit=2):
             assert len(item["description"]) > len("About us") * 5
 
 
-def test_fetch_google(limit=2):
+@pytest.mark.asyncio
+async def test_fetch_google(limit=2):
     db_name = os.environ.get("_MONGO_DB")
     collection_name = os.environ.get("CONTEXT_NAME")
     ids = [
@@ -108,12 +113,12 @@ def test_fetch_google(limit=2):
         docs = collection.find({"_id": {"$in": ids}})
         urls = [doc["url"] for doc in docs]
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=browser_args)
-        context = browser.new_context()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False, args=browser_args)
+        context = await browser.new_context()
 
         for url in urls:
-            data = fetch_google(url=url, limit=limit, context=context)
+            data = await fetch_google(url=url, limit=limit, context=context)
             item = data[0]
             keys_ = item.keys()
             result_keys = [
