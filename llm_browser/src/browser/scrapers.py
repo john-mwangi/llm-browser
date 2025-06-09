@@ -374,8 +374,8 @@ async def fetch_linkedin(
         logger.info(f"Processing page {current_page_num}...")
         res = await get_job_cards(page)
         results.extend(res)
-        next_button = await page.locator('button[aria-label="View next page"]')
-        if next_button.is_visible() and not next_button.is_disabled():
+        next_button = page.locator('button[aria-label="View next page"]')
+        if await next_button.is_visible() and not next_button.is_disabled():
             logger.info("Clicking 'Next' button to navigate to the next page.")
             try:
                 await next_button.click()
