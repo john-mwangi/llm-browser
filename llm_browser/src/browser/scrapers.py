@@ -271,9 +271,10 @@ def get_job_cards(page: Page, limit: int = None):
     limit = limit if limit is not None else job_cards.count()
 
     for i in tqdm(range(limit)):
+        job_details = ".jobs-box__html-content#job-details"
         card = job_cards.nth(i)
         card.click()
-        time.sleep(2)
+        page.wait_for_selector(job_details)
         job_title = card.locator(".job-card-container__link strong")
         company_name = card.locator(".artdeco-entity-lockup__subtitle span")
         location_name = card.locator(".artdeco-entity-lockup__caption li span")
@@ -285,7 +286,6 @@ def get_job_cards(page: Page, limit: int = None):
         except Exception as e:
             logger.exception(e)
         location = location_name.inner_text() if location_name else "N/A"
-        job_details = ".jobs-box__html-content#job-details"
         job_description = page.query_selector(job_details)
         res.append(
             {
