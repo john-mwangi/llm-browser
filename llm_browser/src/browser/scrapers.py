@@ -79,7 +79,6 @@ async def fetch_google(url: str, context: BrowserContext, limit: int = None):
         logger.warning("there was an issue extracting links")
 
     result = []
-    descriptions = []
 
     limit = limit if limit is not None else len(links)
 
@@ -97,21 +96,31 @@ async def fetch_google(url: str, context: BrowserContext, limit: int = None):
             ).click(timeout=10000)
             await page.wait_for_load_state("domcontentloaded")
 
-            descriptions_element = await page.query_selector_all("div.NgUYpe")
-            for jd in descriptions_element:
-                jd_text = await jd.text_content()
-                if jd_text != "Report this listing":
-                    descriptions.append(jd_text)
-
             job_title = await link.text_content()
 
-            result.append(
-                {
-                    "title": job_title.strip(),
-                    "company": entity.strip(),
-                    "description": descriptions[i].strip(),
-                }
-            )
+            descriptions = await page.query_selector_all("div.NgUYpe")
+            current_desc = []
+            for jd in descriptions:
+                jd_text = await jd.text_content()
+                if jd_text != "Report this listing":
+                    current_desc.append(jd_text)
+
+            if i == 0:
+                result.append(
+                    {
+                        "title": job_title.strip(),
+                        "company": entity.strip(),
+                        "description": current_desc[0].strip(),
+                    }
+                )
+            else:
+                result.append(
+                    {
+                        "title": job_title.strip(),
+                        "company": entity.strip(),
+                        "description": current_desc[1].strip(),
+                    }
+                )
 
         except Exception as e:
             logger.exception(f"error on '{url}': {e}")
