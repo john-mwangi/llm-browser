@@ -148,7 +148,6 @@ def main(browser_context: BrowserContext):
 
                 if url.startswith("https://www.linkedin"):
                     try:
-                        # data = fetch_linkedin(url, browser)
                         data = fetch_linkedin(url, browser_context)
                     except Exception as e:
                         logger.exception(f"error with {url}: {e}")
