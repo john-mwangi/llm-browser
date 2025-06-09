@@ -280,7 +280,6 @@ async def get_job_cards(page: Page, limit: int = None):
         card = job_cards.nth(i)
         await card.click()
         await page.wait_for_selector(job_details)
-        # time.sleep(2)
         job_title = card.locator(".job-card-container__link strong")
         company_name = card.locator(".artdeco-entity-lockup__subtitle span")
         location_name = card.locator(".artdeco-entity-lockup__caption li span")
@@ -294,14 +293,21 @@ async def get_job_cards(page: Page, limit: int = None):
         except Exception as e:
             logger.exception(e)
         location = await location_name.inner_text() if location_name else "N/A"
-        job_description = await page.query_selector(job_details)
+        job_description_element = await page.query_selector(job_details)
+        job_description = await job_description_element.inner_text()
+
+        try:
+            assert len(job_description) > len("About us") * 5
+        except AssertionError:
+            time.sleep(2)
+            job_description = await job_description_element.inner_text()
 
         res.append(
             {
                 "title": title.strip(),
                 "company": company.strip(),
                 "location": location.strip(),
-                "description": await job_description.inner_text(),
+                "description": job_description.strip(),
             }
         )
     return res
