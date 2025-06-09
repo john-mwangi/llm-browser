@@ -36,7 +36,10 @@ def get_mongodb_client():
 
 
 def save_to_db(
-    fp: Optional[Path | str], key: str, collection: str, data: Optional[dict]
+    fp: Optional[Path | str],
+    key: Optional[str],
+    collection: str,
+    data: Optional[dict],
 ):
     """Inserts a document from a file or a multiline string into the database.
     The content of your file will be added to `data`.
@@ -50,11 +53,11 @@ def save_to_db(
 
     Example
     ---
-    This will upload as: `{"prompt": prompt, "type": "filter_roles"}`
+    This will upload as: `{"prompt": "my custom prompt", "type": "filter_roles"}`
 
     ```
     file_to_db(
-        fp=prompt,
+        fp="my custom prompt",
         key="prompt",
         collection="prompts",
         data={"type": "filter_roles"},

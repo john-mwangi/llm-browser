@@ -8,7 +8,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from playwright.sync_api import BrowserContext, sync_playwright
+from playwright.async_api import BrowserContext, async_playwright
 
 from llm_browser.src.browser.core import browse_content
 from llm_browser.src.browser.scrapers import fetch_google, fetch_linkedin
@@ -31,7 +31,7 @@ db_name = os.environ.get("_MONGO_DB")
 context_name = os.environ.get("CONTEXT_NAME")
 
 
-def main(browser_context: BrowserContext):
+async def main(browser_context: BrowserContext):
     client = get_mongodb_client()
 
     with client:
@@ -67,11 +67,9 @@ def main(browser_context: BrowserContext):
                 url = doc["url"]
                 browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
 
-                agent_history = asyncio.run(
-                    browse_content(
-                        prompt=browsing_prompt,
-                        model=models.get(vision_model),
-                    )
+                agent_history = await browse_content(
+                    prompt=browsing_prompt,
+                    model=models.get(vision_model),
                 )
 
                 final_result = agent_history.final_result()
@@ -91,19 +89,6 @@ def main(browser_context: BrowserContext):
                     data=augmented_data,
                     prompt=resume_prompt,
                     model=models.get(text_model),
-                )
-
-                logger.info("saving to database...")
-                save_to_db(
-                    fp=None,
-                    key=None,
-                    collection="results",
-                    data={
-                        "run_id": run_id,
-                        "created_at": created_at,
-                        "title": title,
-                        "result": response,
-                    },
                 )
 
                 logger.info("saving results to database...")
@@ -141,14 +126,14 @@ def main(browser_context: BrowserContext):
 
                 if url.startswith("https://www.google"):
                     try:
-                        data = fetch_google(url, context=browser_context)
+                        data = await fetch_google(url, context=browser_context)
                     except Exception as e:
                         logger.exception(f"error with {url}: {e}")
                         continue
 
                 if url.startswith("https://www.linkedin"):
                     try:
-                        data = fetch_linkedin(url, browser_context)
+                        data = await fetch_linkedin(url, browser_context)
                     except Exception as e:
                         logger.exception(f"error with {url}: {e}")
                         continue
@@ -190,7 +175,12 @@ def main(browser_context: BrowserContext):
 if "__name__" == "__name__":
     from llm_browser.src.configs.config import browser_args
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=browser_args)
-        context = browser.new_context()
-        main(browser_context=context)
+    async def run():
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=False, args=browser_args
+            )
+            context = await browser.new_context()
+            await main(browser_context=context)
+
+    asyncio.run(run())
