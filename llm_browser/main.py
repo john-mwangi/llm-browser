@@ -26,15 +26,14 @@ load_dotenv(override=True)
 set_logging()
 logger = logging.getLogger(__name__)
 
-tz = os.environ.get("TZ")
+tz = os.environ.get("TZ", "UTC")
 text_model = os.environ.get("TEXT_MODEL")
 vision_model = os.environ.get("VISION_MODEL")
-webhook = os.environ.get("DISCORD_WEBHOOK")
 db_name = os.environ.get("_MONGO_DB")
 context_name = os.environ.get("CONTEXT_NAME")
 
 
-def get_information():
+def get_information() -> dict:
     """Retrieves information from the database including urls, prompts, tasks,
     etc.
 
@@ -117,7 +116,6 @@ def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
                 logger.exception(f"error with {url}: {e}")
                 continue
 
-    logger.info(f"First five results: {result[:5]}")
     return result
 
 
@@ -185,11 +183,10 @@ async def run_async(
                     logger.exception(f"error with {url}: {e}")
                     continue
 
-    logger.info(f"First five results: {result[:5]}")
     return result
 
 
-def process_results(results: list[dict], prompts: dict):
+def process_results(results: list[dict], prompts: dict) -> None:
     """Interacts with an LLM models to process the provided results.
 
     Args
@@ -199,7 +196,7 @@ def process_results(results: list[dict], prompts: dict):
 
     Returns
     ---
-    LLM response in markdown format is posted to a channel
+    LLM response in markdown format is posted to a channel or save to the db
     """
     resume = prompts["resume"]
     filter_prompt = prompts["filter_prompt"]
@@ -239,7 +236,7 @@ def process_results(results: list[dict], prompts: dict):
         )
 
 
-if "__name__" == "__name__":
+if __name__ == "__main__":
     # retrieve the necessary information
     content = get_information()
 
@@ -266,3 +263,5 @@ if "__name__" == "__name__":
 
     # process async results with llm
     process_results(results=results_async, prompts=content)
+
+    logger.info("~~~ TASK COMPLETED!!! ~~~")
