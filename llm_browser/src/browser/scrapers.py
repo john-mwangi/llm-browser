@@ -7,6 +7,9 @@ import time
 import requests
 from dotenv import load_dotenv
 from playwright.async_api import BrowserContext, Error, Page
+from playwright.sync_api import BrowserContext as SBrowserContext
+from playwright.sync_api import Error as SError
+from playwright.sync_api import Page as SPage
 from tqdm import tqdm
 
 from llm_browser.src.browser.core import setup_browser_instance
@@ -269,7 +272,138 @@ def fetch_linkedin_logged_out(url: str, headless: bool = False):
     return results
 
 
-async def get_job_cards(page: Page, limit: int = None):
+def get_job_cards(page: SPage, limit: int = None):
+    """
+    Extract job details from search results.
+    """
+    res = []
+
+    job_cards_locator = "div.scaffold-layout__list > div > ul > li"
+    page.wait_for_selector(job_cards_locator)
+
+    # scroll to load all jobs
+    max_scrolls = 5
+
+    for _ in range(max_scrolls):
+        page.mouse.wheel(0, 10000)
+        time.sleep(2)
+        end_marker = page.get_by_role("button", name="View next page")
+        if end_marker.is_visible():
+            logger.info("Reached end of page.")
+            break
+
+    job_cards = page.locator(job_cards_locator)
+    jobs_count = job_cards.count()
+    logger.info(f"found {jobs_count} jobs")
+
+    limit = limit if limit is not None else jobs_count
+
+    for i in tqdm(range(limit)):
+        job_details = ".jobs-box__html-content#job-details"
+        card = job_cards.nth(i)
+        card.click()
+        page.wait_for_selector(job_details)
+        job_title = card.locator(".job-card-container__link strong")
+        company_name = card.locator(".artdeco-entity-lockup__subtitle span")
+        location_name = card.locator(".artdeco-entity-lockup__caption li span")
+        title = job_title.inner_text() if job_title else "N/A"
+        try:
+            company = company_name.inner_text() if company_name else "N/A"
+        except SError:
+            company = company_name.nth(0).inner_text()
+        except Exception as e:
+            logger.exception(e)
+        location = location_name.inner_text() if location_name else "N/A"
+        job_description_element = page.query_selector(job_details)
+        job_description = job_description_element.inner_text()
+
+        try:
+            assert len(job_description) > len("About us") * 5
+        except AssertionError:
+            time.sleep(2)
+            job_description = job_description_element.inner_text()
+
+        res.append(
+            {
+                "title": title.strip(),
+                "company": company.strip(),
+                "location": location.strip(),
+                "description": job_description.strip(),
+            }
+        )
+    return res
+
+
+def fetch_linkedin(
+    url: str,
+    context: SBrowserContext,
+    home_page: str = "https://www.linkedin.com/",
+    login_success: str = "https://www.linkedin.com/feed/",
+    max_pages: int = 10,
+    limit: int = None,
+):
+    """
+    Fetches LinkedIn job listings, including pagination, when logged in.
+    """
+    results = []
+    page = context.new_page()
+    logger.info(f"Navigating to {home_page=}")
+    page.goto(home_page, wait_until="domcontentloaded")
+    current_page = page.url
+    if current_page == login_success:
+        logger.info("Already logged in")
+    else:
+        try:
+            page.locator('[data-test-id="home-hero-sign-in-cta"]').click()
+            page.get_by_role("textbox", name="Email or phone").fill(
+                LINKEDIN_USERNAME
+            )
+            page.get_by_role("textbox", name="Password").fill(
+                LINKEDIN_PASSWORD
+            )
+            page.get_by_role("button", name="Sign in", exact=True).click()
+            page.wait_for_url(login_success, wait_until="domcontentloaded")
+        except Exception:
+            page.goto(login_success, wait_until="domcontentloaded")
+
+    logger.info(f"Navigating to: {url=}")
+    page.goto(url, wait_until="domcontentloaded")
+
+    if limit is not None:
+        res = get_job_cards(page, limit)
+        return res
+
+    current_page_num = 1
+    while current_page_num <= max_pages:
+        logger.info(f"Processing page {current_page_num}...")
+        res = get_job_cards(page)
+        results.extend(res)
+        next_button = page.locator('button[aria-label="View next page"]')
+        if next_button.is_visible() and not next_button.is_disabled():
+            logger.info("Clicking 'Next' button to navigate to the next page.")
+            try:
+                next_button.click()
+                page.wait_for_load_state("domcontentloaded")
+                page.wait_for_selector(".job-card-container")
+                res = get_job_cards(page)
+                current_page_num += 1
+            except Exception as e:
+                logger.error(f"Error navigating to next page: {e}")
+                break
+        else:
+            logger.info(
+                "'Next' button not visible or disabled. End of pagination."
+            )
+            break
+
+        logger.info(
+            f"Finished fetching jobs. Total jobs extracted: {len(results)}"
+        )
+    logger.info(f"total jobs extracted: {len(results)}")
+    return results
+
+
+async def get_job_cards_async(page: Page, limit: int = None):
     """
     Extract job details from search results.
     """
@@ -333,7 +467,7 @@ async def get_job_cards(page: Page, limit: int = None):
     return res
 
 
-async def fetch_linkedin(
+async def fetch_linkedin_async(
     url: str,
     context: BrowserContext,
     home_page: str = "https://www.linkedin.com/",
@@ -366,13 +500,13 @@ async def fetch_linkedin(
     await page.goto(url, wait_until="domcontentloaded")
 
     if limit is not None:
-        res = await get_job_cards(page, limit)
+        res = await get_job_cards_async(page, limit)
         return res
 
     current_page_num = 1
     while current_page_num <= max_pages:
         logger.info(f"Processing page {current_page_num}...")
-        res = await get_job_cards(page)
+        res = await get_job_cards_async(page)
         results.extend(res)
         next_button = page.locator('button[aria-label="View next page"]')
         if await next_button.is_visible() and not next_button.is_disabled():
@@ -381,7 +515,7 @@ async def fetch_linkedin(
                 await next_button.click()
                 await page.wait_for_load_state("domcontentloaded")
                 await page.wait_for_selector(".job-card-container")
-                res = await get_job_cards(page)
+                res = await get_job_cards_async(page)
                 current_page_num += 1
             except Exception as e:
                 logger.error(f"Error navigating to next page: {e}")
