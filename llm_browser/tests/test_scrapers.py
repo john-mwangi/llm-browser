@@ -11,6 +11,7 @@ from playwright.sync_api import sync_playwright
 from llm_browser.src.browser.scrapers import (
     fetch_google,
     fetch_linkedin,
+    fetch_linkedin_async,
     fetch_linkedin_logged_out,
 )
 from llm_browser.src.configs.config import ROOT_DIR, browser_args
@@ -53,7 +54,8 @@ def test_google_search():
 
 
 @pytest.mark.asyncio
-async def test_fetch_linkedin(loggedin=[True], limit=2):
+@pytest.mark.skip(reason="LinkedIn in async mode is not used")
+async def test_fetch_linkedin_async(loggedin=[True], limit=2):
     db_name = os.environ.get("_MONGO_DB")
     collection_name = os.environ.get("CONTEXT_NAME")
     ids = [
@@ -81,7 +83,7 @@ async def test_fetch_linkedin(loggedin=[True], limit=2):
             if False in loggedin:
                 data = fetch_linkedin_logged_out(url=url)
             if True in loggedin:
-                data = await fetch_linkedin(
+                data = await fetch_linkedin_async(
                     url=url, limit=limit, context=context
                 )
             item = data[0]
@@ -129,3 +131,45 @@ async def test_fetch_google(limit=2):
 
             assert all([k in result_keys for k in keys_])
             assert len(item["description"]) > len("Job description") * 5
+
+
+def test_fetch_linkedin(loggedin=[True], limit=2):
+    db_name = os.environ.get("_MONGO_DB")
+    collection_name = os.environ.get("CONTEXT_NAME")
+    ids = [
+        ObjectId(i)
+        for i in [
+            "68128e1796cefad9b2cd1bc7",
+            "6812962096cefad9b2cd1bc9",
+            "681299be96cefad9b2cd1bcd",
+            "68129a3f96cefad9b2cd1bcf",
+        ]
+    ]
+
+    client = get_mongodb_client()
+    with client:
+        db = client[db_name]
+        collection = db[collection_name]
+        docs = collection.find({"_id": {"$in": ids}})
+        urls = [doc["url"] for doc in docs]
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, args=browser_args)
+        context = browser.new_context()
+
+        for url in urls:
+            if False in loggedin:
+                data = fetch_linkedin_logged_out(url=url)
+            if True in loggedin:
+                data = fetch_linkedin(url=url, limit=limit, context=context)
+            item = data[0]
+            keys_ = item.keys()
+            result_keys = [
+                "title",
+                "company",
+                "location",
+                "description",
+            ]
+
+            assert all([k in result_keys for k in keys_])
+            assert len(item["description"]) > len("About us") * 5
