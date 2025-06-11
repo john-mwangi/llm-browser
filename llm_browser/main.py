@@ -19,6 +19,7 @@ from llm_browser.src.configs.config import browser_args
 from llm_browser.src.database import get_mongodb_client, save_to_db
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import filter_query, query_llm
+from llm_browser.src.tasks import TaskType
 from llm_browser.src.utils import set_logging
 
 load_dotenv(override=True)
@@ -92,7 +93,7 @@ def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
 
     Returns
     ---
-    - Data scraped from the websites
+    - Data scraped from a url
     """
 
     urls = content["sync_urls"]
@@ -103,10 +104,10 @@ def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
         created_at = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d %H%M%S")
         if url.startswith("https://www.linkedin"):
             try:
-                data = fetch_linkedin(url, browser_context)
+                roles = fetch_linkedin(url, browser_context)
                 result.append(
                     {
-                        "roles": data,
+                        "roles": roles,
                         "title": title,
                         "run_id": run_id,
                         "created_at": created_at,
@@ -116,6 +117,7 @@ def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
                 logger.exception(f"error with {url}: {e}")
                 continue
 
+        logger.info(f"retrieved {len(roles)} roles from {url}")
     return result
 
 
@@ -133,7 +135,7 @@ async def run_async(
 
     Returns
     ---
-    - Data scraped from the website.
+    - Data scraped from a url
     """
 
     urls = content["async_urls"]
@@ -144,7 +146,12 @@ async def run_async(
         run_id = uuid4().hex
         created_at = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d %H%M%S")
 
-        if task == "browse":
+        try:
+            task_type = TaskType(task.strip().lower())
+        except Exception:
+            logger.exception(f"unknown task: {task}")
+
+        if task_type == TaskType.BROWSE:
             browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
 
             agent_history = await browse_content(
@@ -157,23 +164,23 @@ async def run_async(
                 -2
             ].model_dump_json()
 
-            logger.info(f"browser results: {final_result[:50]}")
+            roles = json.loads(final_result)
             result.append(
                 {
-                    "roles": json.loads(final_result),
+                    "roles": roles,
                     "title": title,
                     "run_id": run_id,
                     "created_at": created_at,
                 }
             )
 
-        if task == "scrape":
+        if task_type == TaskType.SCRAPE:
             if url.startswith("https://www.google"):
                 try:
-                    data = await fetch_google(url, context=browser_context)
+                    roles = await fetch_google(url, context=browser_context)
                     result.append(
                         {
-                            "roles": data,
+                            "roles": roles,
                             "title": title,
                             "run_id": run_id,
                             "created_at": created_at,
@@ -183,6 +190,7 @@ async def run_async(
                     logger.exception(f"error with {url}: {e}")
                     continue
 
+        logger.info(f"retrieved {len(roles)} roles from {url}")
     return result
 
 
@@ -236,7 +244,7 @@ def process_results(results: list[dict], prompts: dict) -> None:
         )
 
 
-if __name__ == "__main__":
+def main() -> None:
     # retrieve the necessary information
     content = get_information()
 
@@ -265,3 +273,7 @@ if __name__ == "__main__":
     process_results(results=results_async, prompts=content)
 
     logger.info("~~~ TASK COMPLETED!!! ~~~")
+
+
+if __name__ == "__main__":
+    main()
