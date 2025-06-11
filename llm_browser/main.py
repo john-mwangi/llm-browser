@@ -19,6 +19,7 @@ from llm_browser.src.configs.config import browser_args
 from llm_browser.src.database import get_mongodb_client, save_to_db
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import filter_query, query_llm
+from llm_browser.src.tasks import TaskType
 from llm_browser.src.utils import set_logging
 
 load_dotenv(override=True)
@@ -145,7 +146,12 @@ async def run_async(
         run_id = uuid4().hex
         created_at = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d %H%M%S")
 
-        if task == "browse":
+        try:
+            task_type = TaskType(task.strip().lower())
+        except Exception:
+            logger.exception(f"unknown task: {task}")
+
+        if task_type == TaskType.BROWSE:
             browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
 
             agent_history = await browse_content(
@@ -168,7 +174,7 @@ async def run_async(
                 }
             )
 
-        if task == "scrape":
+        if task_type == TaskType.SCRAPE:
             if url.startswith("https://www.google"):
                 try:
                     roles = await fetch_google(url, context=browser_context)
