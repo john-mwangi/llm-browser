@@ -62,7 +62,7 @@ async def fetch_google(url: str, context: BrowserContext, limit: int = None):
     await page.wait_for_selector("body")
 
     # scroll to load all jobs
-    max_scrolls = 5
+    max_scrolls = 20
 
     for _ in range(max_scrolls):
         await page.mouse.wheel(0, 10000)
@@ -88,18 +88,20 @@ async def fetch_google(url: str, context: BrowserContext, limit: int = None):
     counter = 0
     for i, (link, entity) in enumerate(zip(links, entities)):
         await link.click()
+        await page.wait_for_load_state()
+
         counter += 1
         if counter > limit:
             logger.warning(f"Exceeded {limit=}")
             break
 
         try:
-            await page.get_by_role(
-                role="button", name="Show full description"
-            ).click(timeout=10000)
-            await page.wait_for_load_state("domcontentloaded")
-
             job_title = await link.text_content()
+            full_description = page.get_by_role(
+                role="button", name="Show full description"
+            )
+            await full_description.click(timeout=5000)
+            await page.wait_for_load_state()
 
             descriptions = await page.query_selector_all("div.NgUYpe")
             current_desc = []
