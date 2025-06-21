@@ -6,9 +6,11 @@ import logging
 import os
 import re
 import time
+from pathlib import Path
 from typing import Any, Callable, Tuple
 
 import requests
+from docling.document_converter import DocumentConverter
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -102,3 +104,19 @@ def string_to_dict(texts: list[str]):
         except Exception as e:
             continue
     raise ValueError("could not parse json")
+
+
+def convert_document(sp: Path | str, fp: Path | str):
+    """Converts a document to AI-ready format.
+
+    Args
+    ---
+    - sp: path to the source document
+    - fp: path to save the result
+    """
+    converter = DocumentConverter()
+    result = converter.convert(sp)
+    file = result.document.export_to_markdown()
+
+    with open(fp, mode="w") as f:
+        f.write(file)
