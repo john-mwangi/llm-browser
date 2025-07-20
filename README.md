@@ -13,14 +13,14 @@ perform tasks such as content summarization and rating.
 This solution leverages several key technologies to autonomously browse and 
 analyze job postings:
 
-**Playwright:** Web automation framework for scraping job data from LinkedIn 
+1. **Playwright:** Web automation framework for scraping job data from LinkedIn 
 and Google Jobs
-**browser-use:** AI agent library that enables LLM-driven web browsing
-**LangChain:** Framework for integrating multiple LLM providers (OpenAI, 
+2. **browser-use:** AI agent library that enables LLM-driven web browsing
+3. **LangChain:** Framework for integrating multiple LLM providers (OpenAI, 
 Anthropic, Google Gemini)
-**MongoDB:** Database for storing job data, prompts, and results
-**Discord Webhooks:** For posting filtered job results to channels
-**LLMs:** Utilizes OpenAI, Anthropic, Google Gemini, and Ollama for processing 
+4. **MongoDB:** Database for storing job data, prompts, and results
+5. **Discord Webhooks:** For posting filtered job results to channels
+6. **LLMs:** Utilizes OpenAI, Anthropic, Google Gemini, and Ollama for processing 
 and generating responses
 
 ### Process Flow
@@ -52,7 +52,8 @@ graph TD
 ```
 
 ### Detailed Steps
-1. **Data Retrieval**: The system fetches URLs, prompts, and resume data from MongoDB collections
+1. **Data Retrieval**: The system fetches URLs, prompts, and resume data from 
+MongoDB collections
 
 2. **Browser Automation**: 
    - **LinkedIn**: Uses authenticated Playwright sessions to scrape job listings with pagination
