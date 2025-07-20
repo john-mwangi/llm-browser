@@ -26,26 +26,26 @@ and generating responses
 ### Process Flow
 ```mermaid
 graph TD
-    A["🚀 Start"] --> B["🗃️ Retrieve URLs & Prompts<br/>from MongoDB"]
+    A["🚀 Start"] --> B["📊 Retrieve URLs & Prompts from MongoDB"]
     B --> C{"🔄 Task Type"}
     
     subgraph "Browser Automation"
-        C -->|Scrape| D["<img src='https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg' width='25' height='25'/> LinkedIn Jobs<br/>🎭 Authenticated Playwright"]
-        C -->|Scrape| E[Google Jobs<br/>Async Playwright]
-        C -->|Browse| F[Other Sites<br/>AI Agent + Vision LLM]
-        D --> G[Extract Job Data]
+        C -->|Scrape| D["💼 LinkedIn Jobs<br/>🎭 Authenticated Playwright"]
+        C -->|Scrape| E["🔍 Google Jobs<br/>🎭 Async Playwright"]
+        C -->|Browse| F["🌐 Other Sites<br/>🤖 AI Agent + 🧠 Vision LLM"]
+        D --> G["📋 Extract Job Data"]
         E --> G
         F --> G
     end
     
     subgraph "AI Ranking & Filtering"
-        G --> H[Score Jobs using LLM<br/>Compare against Resume]
-        H --> I[Filter Jobs using LLM<br/>Score ≥ 7/10]
+        G --> H["🎯 Score Jobs using LLM<br/>📄 Compare against Resume"]
+        H --> I["🔍 Filter Jobs<br/>⭐ Score ≥ 7/10"]
     end
     
     subgraph "Notification & Storage"
-        I --> J[Post to Discord Channel]
-        J --> K[Save Results to MongoDB]
+        I --> J["💬 Post to Discord Channel"]
+        J --> K["🗄️ Save Results to MongoDB"]
     end
     
     K --> L["✅ End"]
