@@ -50,6 +50,6 @@ browser_args = [
 class RateLimit(NamedTuple):
     """Rate limit configuration for API requests (RPS)"""
 
-    gemini_2_0: int = 15 / 60
+    gemini_2_0: float = 15 / 60
     discord: int = 50
     min_delay: float = 0.1

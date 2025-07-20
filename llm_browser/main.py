@@ -114,11 +114,11 @@ def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
                         "created_at": created_at,
                     }
                 )
+                logger.info(f"retrieved {len(roles)} roles from {url}")
             except Exception as e:
                 logger.exception(f"error with {url}: {e}")
                 continue
 
-        logger.info(f"retrieved {len(roles)} roles from {url}")
     return result
 
 
@@ -187,11 +187,11 @@ async def run_async(
                             "created_at": created_at,
                         }
                     )
+                    logger.info(f"retrieved {len(roles)} roles from {url}")
                 except Exception as e:
                     logger.exception(f"error with {url}: {e}")
                     continue
 
-        logger.info(f"retrieved {len(roles)} roles from {url}")
     return result
 
 
