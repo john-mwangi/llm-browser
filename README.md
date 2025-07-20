@@ -30,7 +30,7 @@ graph TD
     B --> C{"🔄 Task Type"}
     
     subgraph "Browser Automation"
-        C -->|Scrape| D[<img src='https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg' width='25' height='25' />LinkedIn Jobs<br/>Authenticated Playwright]
+        C -->|Scrape| D["<img src='https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg' width='25' height='25'/> LinkedIn Jobs<br/>🎭 Authenticated Playwright"]
         C -->|Scrape| E[Google Jobs<br/>Async Playwright]
         C -->|Browse| F[Other Sites<br/>AI Agent + Vision LLM]
         D --> G[Extract Job Data]
