@@ -62,7 +62,7 @@ def post_response(content: str, webhook: str, title: str):
     content = format_content(content)
     post = heading + content
     chunks = split_string(post, sep="\n\n")
-    delay = 60 / (REQ_PER_SEC * 60) + MIN_DELAY_SEC
+    delay = (1 / REQ_PER_SEC) + MIN_DELAY_SEC
 
     for chunk in chunks:
         json_result = {"content": chunk}
