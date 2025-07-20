@@ -30,17 +30,17 @@ graph TD
     B --> C{"🔄 Task Type"}
     
     subgraph "Browser Automation"
-        C -->|Scrape| D["💼 LinkedIn Jobs<br/>🎭 Authenticated Playwright"]
-        C -->|Scrape| E["🔍 Google Jobs<br/>🎭 Async Playwright"]
-        C -->|Browse| F["🌐 Other Sites<br/>🤖 AI Agent + 🧠 Vision LLM"]
+        C -->|Scrape| D["💼 <b>LinkedIn Jobs</b><br/>🎭 Authenticated Playwright"]
+        C -->|Scrape| E["🔍 <b>Google Jobs</b><br/>🎭 Async Playwright"]
+        C -->|Browse| F["🌐 <b>Other Sites</b><br/>🤖 AI Agent + 🧠 Vision LLM"]
         D --> G["📋 Extract Job Data"]
         E --> G
         F --> G
     end
     
     subgraph "AI Ranking & Filtering"
-        G --> H["🎯 Score Jobs using LLM<br/>📄 Compare against Resume"]
-        H --> I["🔍 Filter Jobs<br/>⭐ Score ≥ 7/10"]
+        G --> H["🎯 <b>Score Jobs using LLM</b><br/>📄 Compare against Resume"]
+        H --> I["🔍 <b>Filter Jobs</b><br/>⭐ Score ≥ 7/10"]
     end
     
     subgraph "Notification & Storage"
