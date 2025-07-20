@@ -20,6 +20,6 @@ models = {
     "ollama": ChatOllama(
         model="llama3.2:3b", base_url=base_url, disable_streaming=True
     ),
-    "gemini-vision": ChatGoogleGenerativeAI(model="gemini-2.0-flash"),
+    "gemini-vision": ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite"),
     "gemini-text": ChatGoogleGenerativeAI(model="gemini-2.0-flash"),
 }
