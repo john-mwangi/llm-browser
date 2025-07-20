@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from time import sleep
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -15,7 +16,7 @@ from playwright.sync_api import sync_playwright
 
 from llm_browser.src.browser.core import browse_content
 from llm_browser.src.browser.scrapers import fetch_google, fetch_linkedin
-from llm_browser.src.configs.config import browser_args
+from llm_browser.src.configs.config import RateLimit, browser_args
 from llm_browser.src.database import get_mongodb_client, save_to_db
 from llm_browser.src.llm.models import models
 from llm_browser.src.llm.query import filter_query, query_llm
@@ -113,11 +114,11 @@ def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
                         "created_at": created_at,
                     }
                 )
+                logger.info(f"retrieved {len(roles)} roles from {url}")
             except Exception as e:
                 logger.exception(f"error with {url}: {e}")
                 continue
 
-        logger.info(f"retrieved {len(roles)} roles from {url}")
     return result
 
 
@@ -186,11 +187,11 @@ async def run_async(
                             "created_at": created_at,
                         }
                     )
+                    logger.info(f"retrieved {len(roles)} roles from {url}")
                 except Exception as e:
                     logger.exception(f"error with {url}: {e}")
                     continue
 
-        logger.info(f"retrieved {len(roles)} roles from {url}")
     return result
 
 
@@ -209,6 +210,8 @@ def process_results(results: list[dict], prompts: dict) -> None:
     resume = prompts["resume"]
     filter_prompt = prompts["filter_prompt"]
     resume_prompt = prompts["resume_prompt"]
+
+    delay = (1 / RateLimit.gemini_2_0) + RateLimit.min_delay
 
     for result in results:
         roles = result["roles"]
@@ -242,6 +245,8 @@ def process_results(results: list[dict], prompts: dict) -> None:
             model=models.get(text_model),
             title=result["title"],
         )
+
+        sleep(delay)
 
 
 def main() -> None:

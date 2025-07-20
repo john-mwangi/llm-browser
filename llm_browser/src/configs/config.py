@@ -1,6 +1,7 @@
 """Handles loading .env, environment variables, constants (browser args, paths, model names)"""
 
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT_DIR = Path(__file__).parent.parent
 results_dir = ROOT_DIR / "results"
@@ -44,3 +45,11 @@ browser_args = [
     "--ignore-certificate-errors",
     "--enable-webgl",
 ]
+
+
+class RateLimit(NamedTuple):
+    """Rate limit configuration for API requests (RPS)"""
+
+    gemini_2_0: float = 15 / 60
+    discord: int = 50
+    min_delay: float = 0.1
