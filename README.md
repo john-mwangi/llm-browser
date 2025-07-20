@@ -30,7 +30,7 @@ graph TD
     B --> C{"🔄 Task Type"}
     
     subgraph "Browser Automation"
-        C -->|Scrape| D["💼 <b>LinkedIn Jobs</b><br/>🎭 Authenticated Playwright"]
+        C -->|Scrape| D["💼 <b>LinkedIn Jobs</b><br/>🎭 Sync Playwright"]
         C -->|Scrape| E["🔍 <b>Google Jobs</b><br/>🎭 Async Playwright"]
         C -->|Browse| F["🌐 <b>Other Sites</b><br/>🤖 AI Agent + 🧠 Vision LLM"]
         D --> G["📋 Extract Job Data"]
