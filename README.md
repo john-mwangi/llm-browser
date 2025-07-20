@@ -82,6 +82,8 @@ The system runs both synchronous (LinkedIn) and asynchronous (Google, other site
 2. Prerequisites:
     - Python 3.11
     - MongoDB
+    - API keys for OpenAI, Anthropic, or Google Gemini
+    - Ollama installed and running (if using Ollama models)
 3. Create a Python virtual environment and activate it:
 ```bash
 python -m venv venv
