@@ -18,6 +18,7 @@ from llm_browser.src.configs.config import RateLimit
 load_dotenv()
 
 WEB_HOOK = os.environ.get("DISCORD_WEBHOOK")
+rate_limit = RateLimit()
 
 
 def set_logging():
@@ -62,7 +63,7 @@ def post_response(content: str, webhook: str, title: str):
     content = format_content(content)
     post = heading + content
     chunks = split_string(post, sep="\n\n")
-    delay = (1 / RateLimit.discord) + RateLimit.min_delay
+    delay = (1 / rate_limit.discord) + rate_limit.min_delay
 
     for chunk in chunks:
         json_result = {"content": chunk}
