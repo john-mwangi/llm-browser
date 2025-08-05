@@ -210,8 +210,9 @@ def process_results(results: list[dict], prompts: dict) -> None:
     resume = prompts["resume"]
     filter_prompt = prompts["filter_prompt"]
     resume_prompt = prompts["resume_prompt"]
+    rate_limit = RateLimit()
 
-    delay = (1 / RateLimit.gemini_2_0) + RateLimit.min_delay
+    delay = (1 / rate_limit.gemini_2_0) + rate_limit.min_delay
 
     for result in results:
         roles = result["roles"]
