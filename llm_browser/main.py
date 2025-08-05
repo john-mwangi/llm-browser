@@ -33,6 +33,7 @@ text_model = os.environ.get("TEXT_MODEL")
 vision_model = os.environ.get("VISION_MODEL")
 db_name = os.environ.get("_MONGO_DB")
 context_name = os.environ.get("CONTEXT_NAME")
+rate_limit = RateLimit()
 
 
 def get_information() -> dict:
@@ -210,7 +211,6 @@ def process_results(results: list[dict], prompts: dict) -> None:
     resume = prompts["resume"]
     filter_prompt = prompts["filter_prompt"]
     resume_prompt = prompts["resume_prompt"]
-    rate_limit = RateLimit()
 
     delay = (1 / rate_limit.gemini_2_0) + rate_limit.min_delay
 
