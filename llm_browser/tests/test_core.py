@@ -12,7 +12,7 @@ from llm_browser.src.llm.models import models
 load_dotenv()
 
 
-def test_browse_content():
+def test_browser_use():
     db_name = os.environ.get("_MONGO_DB")
     ids = [ObjectId(i) for i in ["68248c86bda0e87a5375d260"]]
     vision_model = os.environ.get("VISION_MODEL")

@@ -21,10 +21,10 @@ WEB_HOOK = os.environ.get("DISCORD_WEBHOOK")
 rate_limit = RateLimit()
 
 
-def set_logging():
+def set_logging(level=logging.INFO):
     """Configure logging for the application"""
     logging.basicConfig(
-        level=logging.INFO,
+        level=level,
         format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d --- %(message)s",
         force=True,
     )

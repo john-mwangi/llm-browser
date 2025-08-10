@@ -134,3 +134,11 @@ To run a specific test case:
 ```bash
 pytest -vs tests/test_scrapers.py::test_fetch_linkedin
 ```
+
+## Scheduling
+You can use a task scheduler like `cron` (Linux) or Task Scheduler (Windows).
+```bash
+# ref: https://crontab.guru/
+# this command OVERWRITES the log file, instead of appending
+45 21 * * 2,4 /path/to/bin/python /path/to/llm-browser/llm_browser/main.py > path/to/llm-browser/llm_browser/logs/llmbrowser.log 2>&1
+```
