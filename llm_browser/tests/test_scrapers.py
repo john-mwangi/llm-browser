@@ -32,7 +32,7 @@ def test_headless(
         assert answer == "You are not Chrome headless"
 
 
-@pytest.mark.skip(reason="use async implementation instead")
+@pytest.mark.skip(reason="google search is not used")
 def test_google_search():
     GOOGLE_PSE_API_KEY = os.environ.get("GOOGLE_PSE_API_KEY")
     GOOGLE_PSE_ID = os.environ.get("GOOGLE_PSE_ID")
