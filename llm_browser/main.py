@@ -84,8 +84,12 @@ def get_information() -> dict:
     }
 
 
-def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
-    """Given a list of urls, runs the synchronous instance of the browser on the
+def run_sync(
+    url_content: tuple,
+    browser_context: SBrowserContext,
+    roles_limit: int = None,
+) -> list[dict]:
+    """Given a url, runs the synchronous instance of the browser on the
     urls.
 
     Args
@@ -98,33 +102,33 @@ def run_sync(content: dict, browser_context: SBrowserContext) -> list[dict]:
     - Data scraped from a url
     """
 
-    urls = content["sync_urls"]
     result = []
-
-    for url, title, _ in urls:
-        run_id = uuid4().hex
-        created_at = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d %H%M%S")
-        if url.startswith("https://www.linkedin"):
-            try:
-                roles = fetch_linkedin(url, browser_context)
-                result.append(
-                    {
-                        "roles": roles,
-                        "title": title,
-                        "run_id": run_id,
-                        "created_at": created_at,
-                    }
-                )
-                logger.info(f"retrieved {len(roles)} roles from {url}")
-            except Exception as e:
-                logger.exception(f"error with {url}: {e}")
-                continue
+    url, title, _ = url_content
+    run_id = uuid4().hex
+    created_at = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d %H%M%S")
+    if url.startswith("https://www.linkedin"):
+        try:
+            roles = fetch_linkedin(url, browser_context, limit=roles_limit)
+            result.append(
+                {
+                    "roles": roles,
+                    "title": title,
+                    "run_id": run_id,
+                    "created_at": created_at,
+                }
+            )
+            logger.info(f"retrieved {len(roles)} roles from {url}")
+        except Exception as e:
+            logger.exception(f"error with {url}: {e}")
 
     return result
 
 
 async def run_async(
-    content: dict, browser_context: BrowserContext
+    url_content: tuple,
+    browser_context: BrowserContext,
+    main_prompt: str,
+    roles_limit: int = None,
 ) -> list[dict]:
     """Given a list of urls, runs an ansynchronous instance of the browser on the
     urls.
@@ -140,58 +144,54 @@ async def run_async(
     - Data scraped from a url
     """
 
-    urls = content["async_urls"]
-    main_prompt = content["main_prompt"]
     result = []
+    url, title, task = url_content
+    run_id = uuid4().hex
+    created_at = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d %H%M%S")
 
-    for url, title, task in urls:
-        run_id = uuid4().hex
-        created_at = datetime.now(tz=ZoneInfo(tz)).strftime("%Y-%m-%d %H%M%S")
+    try:
+        task_type = TaskType(task.strip().lower())
+    except Exception:
+        logger.exception(f"unknown task: {task}")
 
-        try:
-            task_type = TaskType(task.strip().lower())
-        except Exception:
-            logger.exception(f"unknown task: {task}")
+    if task_type == TaskType.BROWSE:
+        browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
 
-        if task_type == TaskType.BROWSE:
-            browsing_prompt = main_prompt + "\n\nURL to navigate: " + url
+        agent_history = await browse_content(
+            prompt=browsing_prompt,
+            model=models.get(vision_model),
+        )
 
-            agent_history = await browse_content(
-                prompt=browsing_prompt,
-                model=models.get(vision_model),
-            )
+        final_result = agent_history.final_result()
+        alternate_result = agent_history.action_results()[-2].model_dump_json()
 
-            final_result = agent_history.final_result()
-            alternate_result = agent_history.action_results()[
-                -2
-            ].model_dump_json()
+        roles = json.loads(final_result)
+        result.append(
+            {
+                "roles": roles,
+                "title": title,
+                "run_id": run_id,
+                "created_at": created_at,
+            }
+        )
 
-            roles = json.loads(final_result)
-            result.append(
-                {
-                    "roles": roles,
-                    "title": title,
-                    "run_id": run_id,
-                    "created_at": created_at,
-                }
-            )
-
-        if task_type == TaskType.SCRAPE:
-            if url.startswith("https://www.google"):
-                try:
-                    roles = await fetch_google(url, context=browser_context)
-                    result.append(
-                        {
-                            "roles": roles,
-                            "title": title,
-                            "run_id": run_id,
-                            "created_at": created_at,
-                        }
-                    )
-                    logger.info(f"retrieved {len(roles)} roles from {url}")
-                except Exception as e:
-                    logger.exception(f"error with {url}: {e}")
-                    continue
+    if task_type == TaskType.SCRAPE:
+        if url.startswith("https://www.google"):
+            try:
+                roles = await fetch_google(
+                    url, context=browser_context, limit=roles_limit
+                )
+                result.append(
+                    {
+                        "roles": roles,
+                        "title": title,
+                        "run_id": run_id,
+                        "created_at": created_at,
+                    }
+                )
+                logger.info(f"retrieved {len(roles)} roles from {url}")
+            except Exception as e:
+                logger.exception(f"error with {url}: {e}")
 
     return result
 
@@ -250,33 +250,53 @@ def process_results(results: list[dict], prompts: dict) -> None:
         sleep(delay)
 
 
-def main() -> None:
+def main(urls_limit: int | None = None, roles_limit: int = None) -> None:
     # retrieve the necessary information
     content = get_information()
 
-    # run sync browser
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=browser_args)
-        context = browser.new_context()
-        results = run_sync(content=content, browser_context=context)
+    # retrieve the urls to browse
+    if urls_limit is not None:
+        logger.info(f"Retrieving only {urls_limit} urls")
+        sync_urls = content["sync_urls"][:urls_limit]
+        async_urls = content["async_urls"][:urls_limit]
+    else:
+        sync_urls = content["sync_urls"]
+        async_urls = content["async_urls"]
 
-    # process sync results with llm
-    process_results(results=results, prompts=content)
+    # run sync browser
+    for url in sync_urls:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False, args=browser_args)
+            context = browser.new_context()
+            results_sync = run_sync(
+                url_content=url,
+                browser_context=context,
+                roles_limit=roles_limit,
+            )
+
+        # process sync results with llm
+        process_results(results=results_sync, prompts=content)
 
     # run async browser
-    async def run():
+    async def run(url_content: tuple) -> list[dict]:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=False, args=browser_args
             )
             context = await browser.new_context()
-            results = await run_async(content=content, browser_context=context)
+            results = await run_async(
+                main_prompt=content["main_prompt"],
+                browser_context=context,
+                url_content=url_content,
+                roles_limit=roles_limit,
+            )
         return results
 
-    results_async = asyncio.run(run())
+    for url in async_urls:
+        results_async = asyncio.run(run(url_content=url))
 
-    # process async results with llm
-    process_results(results=results_async, prompts=content)
+        # process async results with llm
+        process_results(results=results_async, prompts=content)
 
     logger.info("~~~ TASK COMPLETED!!! ~~~")
 
